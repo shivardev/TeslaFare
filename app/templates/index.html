@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tesla Cheap Trip</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>TESLA CHEAP TRIP</h1>
+      <p>Find the lowest-cost Supercharger plan over the next 24 hours.</p>
+    </header>
+
+    <form id="trip-form">
+      <label>From<input id="from" value="Chattanooga, TN" required></label>
+      <label>To<input id="to" value="Niagara Falls, NY" required></label>
+      <button type="submit">FIND CHEAPEST TRIP</button>
+    </form>
+
+    <div id="status"></div>
+    <div id="warnings"></div>
+    <section id="best"></section>
+    <div id="map"></div>
+    <section id="plans"></section>
+
+    <footer>
+      <a href="/debug/prices" target="_blank">Pricing debug</a>
+      <span>Vehicle values are planning assumptions; edit <code>app/config/vehicle.py</code>.</span>
+    </footer>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

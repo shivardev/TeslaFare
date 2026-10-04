@@ -1,0 +1,30 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #171717; background: #f5f5f5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1100px; margin: 0 auto; padding: 28px 18px 50px; }
+header { margin-bottom: 20px; }
+h1 { margin: 0 0 6px; letter-spacing: .04em; }
+p { color: #555; }
+form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 1px 5px #0001; }
+label { font-size: 13px; font-weight: 700; }
+input { display: block; width: 100%; margin-top: 6px; padding: 11px 12px; border: 1px solid #ccc; border-radius: 8px; font: inherit; }
+button { padding: 12px 18px; border: 0; border-radius: 8px; background: #111; color: white; font-weight: 800; cursor: pointer; }
+button:disabled { opacity: .55; cursor: wait; }
+#status { margin: 18px 0; font-weight: 650; }
+.warning { background: #fff4ce; padding: 10px 12px; margin: 8px 0; border-radius: 8px; }
+.hero { background: #111; color: white; border-radius: 14px; padding: 20px; margin: 16px 0; }
+.hero p { color: #ddd; }
+.big-price { font-size: 36px; font-weight: 850; }
+.metrics { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 12px; }
+.metric b { display: block; font-size: 17px; }
+.metric span { font-size: 12px; color: #777; }
+.hero .metric span { color: #bbb; }
+#map { height: 380px; border-radius: 12px; overflow: hidden; margin: 18px 0; background: #ddd; display: none; }
+.plan { background: white; border-radius: 12px; padding: 16px; margin: 12px 0; box-shadow: 0 1px 5px #0001; }
+.plan h3 { margin-top: 0; display: flex; justify-content: space-between; gap: 20px; }
+.stop { border-top: 1px solid #eee; padding: 10px 0; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { border-bottom: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; font-size: 13px; }
+pre { white-space: pre-wrap; max-width: 520px; }
+footer { margin-top: 28px; display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: #666; }
+@media (max-width: 760px) { form { grid-template-columns: 1fr; } #map { height: 300px; } }

@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pricing debug</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><main><h1>Pricing debug</h1><p><a href="/">← trip optimizer</a></p>
+<table><thead><tr><th>Station</th><th>Status</th><th>Last fetch</th><th>Tesla URL</th><th>Schedule / error</th></tr></thead><tbody>
+{% for row in rows %}<tr><td>{{ row.station_name }}</td><td>{{ row.status }}</td><td>{{ row.fetched_at }}</td><td><a href="{{ row.tesla_url }}" target="_blank">Tesla</a></td><td><pre>{{ row.schedule }}\n{{ row.error or '' }}</pre></td></tr>{% endfor %}
+</tbody></table></main></body></html>
