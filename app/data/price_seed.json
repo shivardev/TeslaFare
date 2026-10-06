@@ -1,0 +1,5579 @@
+{
+ "prices": {
+  "155134": {
+   "name": "Warszawa, Poland - Z\u0105bki",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 1.8,
+      "start_minute": 1140
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1140,
+      "price_per_kwh": 2.1,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 1.2,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 1.2,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:33.627799Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/155134",
+    "timezone": "Europe/Warsaw"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:33.808863+00:00"
+  },
+  "15793": {
+   "name": "Dayton, OH - N Springboro Pike",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 0.46,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.54,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:14.869872Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/15793",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:09.422191+00:00"
+  },
+  "18626": {
+   "name": "Lexington, KY - Meijer Way",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.44,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.23,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.23,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.23,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:36.965202Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18626",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:08.444854+00:00"
+  },
+  "18681": {
+   "name": "Munster, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.27,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.27,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.5,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.27,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:37.125960Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18681",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:37.287382+00:00"
+  },
+  "18682": {
+   "name": "Columbus, OH - Hilliard Rome Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1200,
+      "price_per_kwh": 0.59,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 0.45,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.21,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.37,
+      "start_minute": 1200
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.21,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:26.682646Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18682",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:10.154559+00:00"
+  },
+  "18701": {
+   "name": "New Albany, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.37,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.25,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.25,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.25,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:32:09.153364Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18701",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:32:09.339063+00:00"
+  },
+  "18735": {
+   "name": "Loveland, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.5,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:03.987776Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18735",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:09.167060+00:00"
+  },
+  "18737": {
+   "name": "Shaker Heights, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.55,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:06:01.672562Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18737",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:11.855750+00:00"
+  },
+  "18740": {
+   "name": "West Chester Township, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.25,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.25,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.55,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.25,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T19:13:00.994236Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18740",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T19:13:01.505958+00:00"
+  },
+  "18784": {
+   "name": "Columbus, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:27.459590Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/18784",
+    "timezone": "America/Indiana/Indianapolis"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:27.625411+00:00"
+  },
+  "19309": {
+   "name": "Sevierville, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:25.557454Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/19309",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:25.723746+00:00"
+  },
+  "20970": {
+   "name": "Lugones, Spain",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 840,
+      "price_per_kwh": 0.38,
+      "start_minute": 600
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.41,
+      "start_minute": 840
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 600,
+      "price_per_kwh": 0.28,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:56:19.000827Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/20970",
+    "timezone": "Europe/Madrid"
+   },
+   "pricing_updated_at": "2026-10-05T20:56:19.196357+00:00"
+  },
+  "26581": {
+   "name": "Richmond, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:18.749186Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/26581",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:07.961743+00:00"
+  },
+  "26722": {
+   "name": "Fairfield, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.54,
+      "start_minute": 540
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:48.274969Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/26722",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:48.447651+00:00"
+  },
+  "26944": {
+   "name": "Fort Mitchell, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.23,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.23,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.44,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.23,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:33.894458Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/26944",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:34.101031+00:00"
+  },
+  "26953": {
+   "name": "Jeffersonville, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.43,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:32:13.742908Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/26953",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:32:13.890651+00:00"
+  },
+  "27109": {
+   "name": "Cleveland, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:21.340546Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27109",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:21.529617+00:00"
+  },
+  "27114": {
+   "name": "Kingston, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.22,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.22,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.4,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.22,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:03:37.999596Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27114",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:06.994764+00:00"
+  },
+  "27123": {
+   "name": "Monteagle, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:27:26.597324Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27123",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:27:26.805262+00:00"
+  },
+  "27127": {
+   "name": "Nashville, TN - Dickerson Pike",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.42,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:47.068094Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27127",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:47.245232+00:00"
+  },
+  "27196": {
+   "name": "Nashville, TN - 11th Ave N",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.48,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:01:09.379493Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27196",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:01:09.561369+00:00"
+  },
+  "27264": {
+   "name": "Champaign, IL - W Kirby Ave",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.5,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:09:51.733523Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27264",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:09:51.958100+00:00"
+  },
+  "27272": {
+   "name": "Normal, IL - W Raab Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:10:16.728430Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27272",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:10:16.917314+00:00"
+  },
+  "27425": {
+   "name": "Lebanon, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:17.043333Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27425",
+    "timezone": "America/Indiana/Indianapolis"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:17.197166+00:00"
+  },
+  "27482": {
+   "name": "Mt. Vernon, IL - South 42nd St",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:08:54.578355Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27482",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:08:54.771038+00:00"
+  },
+  "27491": {
+   "name": "Ashland, OH - Enterprise Pkwy",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.48,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:42.434723Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27491",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:11.124402+00:00"
+  },
+  "27529": {
+   "name": "Nortonville, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:08:49.117895Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27529",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:08:49.302484+00:00"
+  },
+  "27530": {
+   "name": "Frankfort, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.39,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:11.774020Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27530",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:11.955921+00:00"
+  },
+  "27531": {
+   "name": "Upper Sandusky, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.48,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:31.091441Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27531",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:31.270567+00:00"
+  },
+  "27532": {
+   "name": "Seville, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 780,
+      "price_per_kwh": 0.42,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 1200
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1200,
+      "price_per_kwh": 0.57,
+      "start_minute": 780
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:47.353431Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27532",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:11.369969+00:00"
+  },
+  "27807": {
+   "name": "Crossville, TN - Genesis Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:30.512585Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/27807",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:06.720805+00:00"
+  },
+  "28977": {
+   "name": "Pozna\u0144, Poland - G\u0142ogowska",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 1.9,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 1.2,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 1.9,
+      "start_minute": 1140
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1140,
+      "price_per_kwh": 2.1,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 1.2,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 1.2,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:45.329410Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/28977",
+    "timezone": "Europe/Warsaw"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:45.515369+00:00"
+  },
+  "295342": {
+   "name": "Wildau, Germany",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.45,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.28,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.28,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.28,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:50.028974Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/295342",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:50.202008+00:00"
+  },
+  "298828": {
+   "name": "Peine, Germany",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:53.169336Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/298828",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:53.360926+00:00"
+  },
+  "30179": {
+   "name": "Villebon-sur-Yvette, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.28,
+      "start_minute": 1200
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.19,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1200,
+      "price_per_kwh": 0.38,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.19,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:39.604660Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/30179",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:39.797266+00:00"
+  },
+  "303792": {
+   "name": "Roye, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:20.974526Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/303792",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:21.162954+00:00"
+  },
+  "30735": {
+   "name": "Pontiac, IL",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:06:30.109184Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/30735",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:06:30.284564+00:00"
+  },
+  "30743": {
+   "name": "Elizabethtown, KY - N Mulberry St",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:51.112633Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/30743",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:51.296589+00:00"
+  },
+  "32433": {
+   "name": "Chattanooga, TN - Manufacturers Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1260,
+      "price_per_kwh": 0.44,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1260
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:32.727402Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/32433",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:06.481077+00:00"
+  },
+  "32514": {
+   "name": "Nashville, TN - Thompson Lane",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1260,
+      "price_per_kwh": 0.38,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1260
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:15.024520Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/32514",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:15.217894+00:00"
+  },
+  "32550": {
+   "name": "Powell, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:02.014939Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/32550",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:02.182160+00:00"
+  },
+  "33717": {
+   "name": "Fair Oaks, IN - N 600 E",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:30.218846Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/33717",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:30.385733+00:00"
+  },
+  "33720": {
+   "name": "Kuttawa, KY - US-62",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:08:40.507933Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/33720",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:08:40.691001+00:00"
+  },
+  "33731": {
+   "name": "Salem, IL",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:09:01.852034Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/33731",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:09:02.015037+00:00"
+  },
+  "33734": {
+   "name": "South Beloit, IL",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:06:39.148035Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/33734",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:06:39.333313+00:00"
+  },
+  "33752": {
+   "name": "Heath, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 0.5,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.27,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.5,
+      "start_minute": 1140
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1140,
+      "price_per_kwh": 0.6,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.27,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.27,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T19:12:57.753662Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/33752",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T19:12:58.280064+00:00"
+  },
+  "33755": {
+   "name": "Middletown, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.25,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.44,
+      "start_minute": 600
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 600,
+      "price_per_kwh": 0.25,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.25,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:15.167153Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/33755",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:15.347850+00:00"
+  },
+  "33887": {
+   "name": "Smyrna, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.37,
+      "start_minute": 540
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:27:45.658007Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/33887",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:27:45.836635+00:00"
+  },
+  "412853": {
+   "name": "Cave City, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.43,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:11.957588Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/412853",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:12.150485+00:00"
+  },
+  "414005": {
+   "name": "Chattanooga, TN - North Mack Smith Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:11:58.608647Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/414005",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:11:58.763068+00:00"
+  },
+  "434110": {
+   "name": "Smiths Grove, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:19.037436Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/434110",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:19.211186+00:00"
+  },
+  "436970": {
+   "name": "Roissy-en-France, France - Avenue du Bois de la Pie",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.31,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.31,
+      "start_minute": 1200
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1200,
+      "price_per_kwh": 0.36,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.23,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:25.777012Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/436970",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:25.972773+00:00"
+  },
+  "437272": {
+   "name": "Zestoa, Spain",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:56:10.712957Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/437272",
+    "timezone": "Europe/Madrid"
+   },
+   "pricing_updated_at": "2026-10-05T20:56:10.902848+00:00"
+  },
+  "437814": {
+   "name": "Stryk\u00f3w, Poland",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 1.8,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 1.6,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 1.6,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 1.6,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:59.088185Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/437814",
+    "timezone": "Europe/Warsaw"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:59.272662+00:00"
+  },
+  "453202": {
+   "name": "Knoxville, TN - Ray Mears Blvd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.4,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.3,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.3,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.3,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:21.925561Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/453202",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:07.476194+00:00"
+  },
+  "456411": {
+   "name": "Maryville, TN - Watkins Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 0.38,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.33,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.38,
+      "start_minute": 1140
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1140,
+      "price_per_kwh": 0.42,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.33,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.33,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:29.256853Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/456411",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:29.441471+00:00"
+  },
+  "458610": {
+   "name": "Dalton, GA",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:11:47.729496Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/458610",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:11:47.934355+00:00"
+  },
+  "459454": {
+   "name": "Clarksville, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1260,
+      "price_per_kwh": 0.48,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1260
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:27:41.824513Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/459454",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:27:42.027437+00:00"
+  },
+  "477554": {
+   "name": "Chattanooga, TN - Birmingham Hwy",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1260,
+      "price_per_kwh": 0.43,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.23,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.23,
+      "start_minute": 1260
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.23,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:03:58.276584Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/477554",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:06.227443+00:00"
+  },
+  "493159": {
+   "name": "[HiON EV] Clarksville, TN - International Blvd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 120,
+      "price_per_kwh": 0.36,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.36,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.36,
+      "start_minute": 120
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.52,
+      "start_minute": 480
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:27:36.974202Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/493159",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:27:37.150830+00:00"
+  },
+  "59008": {
+   "name": "Louisville, KY - Taylorsville Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.39,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.23,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.23,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.23,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:32:11.473703Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/59008",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:32:11.648675+00:00"
+  },
+  "59013": {
+   "name": "Sikeston, MO",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.33,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:01:07.410993Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/59013",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:01:07.601784+00:00"
+  },
+  "BeaverDamKYsupercharger": {
+   "name": "Beaver Dam, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:31.609453Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/BeaverDamKYsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:31.772788+00:00"
+  },
+  "BeavercreekOHSupercharger": {
+   "name": "Beavercreek, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 0.47,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.47,
+      "start_minute": 1140
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1140,
+      "price_per_kwh": 0.55,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:18.530852Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/BeavercreekOHSupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:09.664759+00:00"
+  },
+  "ChattanoogaTNSupercharger": {
+   "name": "Chattanooga, TN - Hamilton Place Blvd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.41,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:05.788726Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/ChattanoogaTNSupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:06.007675+00:00"
+  },
+  "CrossvilleTNSupercharger": {
+   "name": "Crossville, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:32:16.439552Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/CrossvilleTNSupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:32:16.617082+00:00"
+  },
+  "ElizabethtownKYSupercharger": {
+   "name": "Elizabethtown, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:36.184469Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/ElizabethtownKYSupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:36.359084+00:00"
+  },
+  "FairOaksINsupercharger": {
+   "name": "Fair Oaks, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:14.334532Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/FairOaksINsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:14.479313+00:00"
+  },
+  "JanesvilleWISupercharger": {
+   "name": "Janesville, WI",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.4,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:06:44.385764Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/JanesvilleWISupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:06:44.548596+00:00"
+  },
+  "KimballTNSupercharger": {
+   "name": "Kimball, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:27:29.834733Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/KimballTNSupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:27:30.031194+00:00"
+  },
+  "KnoxvilleTNSupercharger": {
+   "name": "Knoxville, TN - Brookview Centre Way",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:11:24.185781Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/KnoxvilleTNSupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:11:24.383848+00:00"
+  },
+  "Laatzensupercharger": {
+   "name": "Hannover, Germany - Isernhagen",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.45,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:05.309963Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/Laatzensupercharger",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:05.499986+00:00"
+  },
+  "LakeDeltonWISupercharger": {
+   "name": "Lake Delton, WI",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.4,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:06:46.754708Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/LakeDeltonWISupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:06:46.924170+00:00"
+  },
+  "LouisvilleKYSouthsupercharger": {
+   "name": "Louisville, KY - Preston Hwy",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.23,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.23,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.23,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.43,
+      "start_minute": 540
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:01.209360Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/LouisvilleKYSouthsupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:01.384400+00:00"
+  },
+  "MarionILsupercharger": {
+   "name": "Marion, IL",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:09:13.926988Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/MarionILsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:09:14.094103+00:00"
+  },
+  "RochelleILsupercharger": {
+   "name": "Rochelle, IL",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:06:27.466071Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/RochelleILsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:06:27.642245+00:00"
+  },
+  "RoissyenFranceFrancesupercharger": {
+   "name": "Roissy-en-France, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.37,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.31,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.22,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.22,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:30.484973Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/RoissyenFranceFrancesupercharger",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:30.658307+00:00"
+  },
+  "ShelbyvilleINSupercharger": {
+   "name": "Shelbyville, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:06.384893Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/ShelbyvilleINSupercharger",
+    "timezone": "America/Indiana/Indianapolis"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:06.542535+00:00"
+  },
+  "WolfsburgGermanysupercharger": {
+   "name": "Lehre, Germany",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.38,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.33,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.33,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.33,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:28.360952Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/WolfsburgGermanysupercharger",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:28.547845+00:00"
+  },
+  "bayonnesupercharger": {
+   "name": "Bayonne, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.33,
+      "start_minute": 1080
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1080,
+      "price_per_kwh": 0.39,
+      "start_minute": 600
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 600,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:56:05.667774Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/bayonnesupercharger",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:56:05.849695+00:00"
+  },
+  "blankenfeldemahlowsupercharger": {
+   "name": "Blankenfelde-Mahlow, Germany",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.32,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:40.621362Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/blankenfeldemahlowsupercharger",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:40.836554+00:00"
+  },
+  "bowlinggreensupercharger": {
+   "name": "Bowling Green, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.39,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:22:43.458216Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/bowlinggreensupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-05T00:22:43.636207+00:00"
+  },
+  "chillicotheohsupercharger": {
+   "name": "Chillicothe, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.48,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:19.760779Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/chillicotheohsupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:19.924280+00:00"
+  },
+  "cincinnatiohiosupercharger": {
+   "name": "Cincinnati, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.54,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:43.159240Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/cincinnatiohiosupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:08.924356+00:00"
+  },
+  "columbusohiosupercharger": {
+   "name": "Columbus, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.3,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.57,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.3,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:29.724421Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/columbusohiosupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:10.396068+00:00"
+  },
+  "effinghamilsupercharger": {
+   "name": "Effingham, IL",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:09:24.750150Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/effinghamilsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:09:24.956397+00:00"
+  },
+  "florencesupercharger": {
+   "name": "Florence, KY - Houston Rd",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:39.455031Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/florencesupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:08.684861+00:00"
+  },
+  "grovecityohsupercharger": {
+   "name": "Grove City, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1200,
+      "price_per_kwh": 0.55,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 0.47,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.47,
+      "start_minute": 1200
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:23.447758Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/grovecityohsupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:09.907915+00:00"
+  },
+  "hohenwarslebensupercharger": {
+   "name": "Hohenwarsleben, Germany",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.43,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:54:24.016558Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/hohenwarslebensupercharger",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:54:24.207290+00:00"
+  },
+  "indianapolissupercharger": {
+   "name": "Indianapolis, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.45,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.27,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.27,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.27,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:42:57.215565Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/indianapolissupercharger",
+    "timezone": "America/Indiana/Indianapolis"
+   },
+   "pricing_updated_at": "2026-10-06T15:42:57.390701+00:00"
+  },
+  "knoxvillesupercharger": {
+   "name": "Knoxville, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.45,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:00.239154Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/knoxvillesupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:07.238399+00:00"
+  },
+  "kuttawasupercharger": {
+   "name": "Kuttawa, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:09:05.302046Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/kuttawasupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:09:05.499420+00:00"
+  },
+  "labouheyresupercharger": {
+   "name": "Labouheyre, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:56:00.978390Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/labouheyresupercharger",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:56:01.165504+00:00"
+  },
+  "lafayettesupercharger": {
+   "name": "Lafayette, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.38,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 240
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:03.319133Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/lafayettesupercharger",
+    "timezone": "America/Indiana/Indianapolis"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:03.490403+00:00"
+  },
+  "lexingtonkysupercharger": {
+   "name": "Lexington, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:34.614396Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/lexingtonkysupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:08.201786+00:00"
+  },
+  "lippetalsupercharger": {
+   "name": "Lippetal, Germany",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.45,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:08.850291Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/lippetalsupercharger",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:09.024195+00:00"
+  },
+  "londonkysupercharger": {
+   "name": "London, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:04:26.590820Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/londonkysupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:07.713429+00:00"
+  },
+  "louisvillekytowncenterdrivesupercharger": {
+   "name": "Louisville, KY - Towne Center Drive",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1260,
+      "price_per_kwh": 0.45,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1260
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:08.472728Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/louisvillekytowncenterdrivesupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:08.638757+00:00"
+  },
+  "louisvillesupercharger": {
+   "name": "Louisville, KY",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.44,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.23,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.23,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.23,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:05.202626Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/louisvillesupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:05.371074+00:00"
+  },
+  "lugosupercharger": {
+   "name": "Lugo, Spain",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.35,
+      "start_minute": 1080
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1080,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:56:22.945565Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/lugosupercharger",
+    "timezone": "Europe/Madrid"
+   },
+   "pricing_updated_at": "2026-10-05T20:56:23.139809+00:00"
+  },
+  "macedoniasupercharger": {
+   "name": "Macedonia, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.55,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.25,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.25,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.25,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:52.392547Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/macedoniasupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:11.612100+00:00"
+  },
+  "madisonsupercharger": {
+   "name": "Madison, WI",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.43,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.21,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.21,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.21,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:06:23.052929Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/madisonsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:06:23.224580+00:00"
+  },
+  "manchestertnsupercharger": {
+   "name": "Manchester, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.39,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:27:23.005959Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/manchestertnsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:27:23.187471+00:00"
+  },
+  "merrillvilleinsupercharger": {
+   "name": "Merrillville, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.25,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.25,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.25,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.43,
+      "start_minute": 540
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:32.910983Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/merrillvilleinsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:33.078596+00:00"
+  },
+  "mtgileadsupercharger": {
+   "name": "Mt. Gilead, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.49,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.43,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.43,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:39.080378Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/mtgileadsupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:10.881104+00:00"
+  },
+  "nashvilletnsupercharger": {
+   "name": "Nashville, TN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.26,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.26,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.36,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.26,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:27:33.361209Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/nashvilletnsupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T15:27:33.550134+00:00"
+  },
+  "niortsupercharger": {
+   "name": "Vouill\u00e9, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:47.191256Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/niortsupercharger",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:47.378628+00:00"
+  },
+  "peruillinoissupercharger": {
+   "name": "Peru, IL",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.35,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T21:06:32.683083Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/peruillinoissupercharger",
+    "timezone": "America/Chicago"
+   },
+   "pricing_updated_at": "2026-10-06T21:06:32.852271+00:00"
+  },
+  "polarisohsupercharger": {
+   "name": "Polaris, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.55,
+      "start_minute": 720
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 720,
+      "price_per_kwh": 0.5,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.24,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:05:32.865849Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/polarisohsupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:18:10.638799+00:00"
+  },
+  "poltierssupercharger": {
+   "name": "Poitiers, France - Futuroscope",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:42.905739Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/poltierssupercharger",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:43.081045+00:00"
+  },
+  "saintessupercharger": {
+   "name": "Saintes, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:50.567231Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/saintessupercharger",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:50.777684+00:00"
+  },
+  "sanduskyohsupercharger": {
+   "name": "Sandusky, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.43,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.32,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.38,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.32,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T00:23:36.596319Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/sanduskyohsupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-05T00:23:36.754738+00:00"
+  },
+  "valenciennessupercharger": {
+   "name": "Valenciennes, France",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1320,
+      "price_per_kwh": 0.38,
+      "start_minute": 540
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.19,
+      "start_minute": 1320
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.19,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.19,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:17.391131Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/valenciennessupercharger",
+    "timezone": "Europe/Paris"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:17.570922+00:00"
+  },
+  "veedersburginsupercharger": {
+   "name": "Veedersburg, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [],
+      "end_minute": 0,
+      "price_per_kwh": 0.42,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:19.404476Z",
+    "kind": "flat",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/veedersburginsupercharger",
+    "timezone": "America/Indiana/Indianapolis"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:19.581508+00:00"
+  },
+  "westcincinnatiohsupercharger": {
+   "name": "West Cincinnati, OH",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 480,
+      "price_per_kwh": 0.24,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.45,
+      "start_minute": 480
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.24,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:12:42.230574Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/westcincinnatiohsupercharger",
+    "timezone": "America/New_York"
+   },
+   "pricing_updated_at": "2026-10-06T15:12:42.421249+00:00"
+  },
+  "wuppertalsupercharger": {
+   "name": "Wuppertal, Germany",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 540,
+      "price_per_kwh": 0.33,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.27,
+      "start_minute": 1380
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.27,
+      "start_minute": 0
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1380,
+      "price_per_kwh": 0.44,
+      "start_minute": 540
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-05T20:55:12.769589Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/wuppertalsupercharger",
+    "timezone": "Europe/Berlin"
+   },
+   "pricing_updated_at": "2026-10-05T20:55:12.960527+00:00"
+  },
+  "zionsvillesupercharger": {
+   "name": "Zionsville, IN",
+   "pricing": {
+    "bands": [
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 1260,
+      "price_per_kwh": 0.42,
+      "start_minute": 600
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 0,
+      "price_per_kwh": 0.34,
+      "start_minute": 1260
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 600,
+      "price_per_kwh": 0.34,
+      "start_minute": 240
+     },
+     {
+      "days": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6
+      ],
+      "end_minute": 240,
+      "price_per_kwh": 0.34,
+      "start_minute": 0
+     }
+    ],
+    "currency": "USD",
+    "fetched_at": "2026-10-06T15:43:25.021723Z",
+    "kind": "time_of_use",
+    "note": null,
+    "source_url": "https://www.tesla.com/findus/location/supercharger/zionsvillesupercharger",
+    "timezone": "America/Indiana/Indianapolis"
+   },
+   "pricing_updated_at": "2026-10-06T15:43:25.190472+00:00"
+  }
+ },
+ "version": 1
+}

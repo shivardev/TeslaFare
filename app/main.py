@@ -31,7 +31,7 @@ from app.optimizer.graph import GraphWaypoint, build_graph, graph_layout
 from app.optimizer.explain import ChargerExplanation, explain_plan
 from app.optimizer.graph import GraphContext
 from app.optimizer.search import OptimizerConfig, choose_useful_plans, optimize_departure
-from app.pricing.tesla import TeslaPriceProvider
+from app.pricing.tesla import LiveLookupUnavailable, TeslaPriceProvider
 from app.routing.osrm import OSRMRouteProvider
 from app.timezones import TimeApiTimezoneProvider
 from app.vehicle.charging import ChargingModel
@@ -73,6 +73,10 @@ price_provider = TeslaPriceProvider(
     settings.tesla_playwright_browser,
     settings.tesla_browser_backend,
 )
+price_provider.requests_per_hour = settings.live_price_lookups_per_hour
+_seeded = charger_knowledge.import_price_seed(settings.price_seed_path)
+if _seeded:
+    log.info("Loaded %d saved Supercharger prices from %s", _seeded, settings.price_seed_path)
 optimizer_cfg = OptimizerConfig(
     starting_soc=vehicle_cfg.STARTING_SOC,
     min_charger_soc=vehicle_cfg.MIN_CHARGER_SOC,
@@ -286,7 +290,11 @@ async def _fetch_prices(
             # Real prices are reused; a failure is retried, but not again within the retry window.
             if use_charger_cache and (saved_usable or _recent_failure(saved)):
                 return charger, saved, "cached"
-            schedule = await price_provider.get_prices(charger, force_refresh=not use_charger_cache)
+            try:
+                schedule = await price_provider.get_prices(charger, force_refresh=not use_charger_cache)
+            except LiveLookupUnavailable:
+                # Nothing was asked of Tesla: keep a known price, otherwise leave it to the estimate.
+                return charger, saved if saved_usable else None, "skipped"
             if schedule.kind not in USABLE_PRICE_KINDS and saved_usable:
                 # A failed refresh must not overwrite a known price.
                 return charger, saved, "cached"
@@ -312,6 +320,9 @@ async def _fetch_prices(
                 pending.discard(task)
                 try:
                     charger, schedule, source = task.result()
+                    if schedule is None:
+                        completed += 1
+                        continue
                     pricing[charger.location_id] = schedule
                     state = trip_progress.get(progress_id) if progress_id else None
                     if state is not None:
@@ -596,6 +607,11 @@ async def trip(req: TripRequest) -> TripResponse:
         )
 
         warnings: list[str] = []
+        if price_provider.rate_limited and not price_provider.blocked:
+            warnings.append(
+                "The hourly limit for live Tesla price lookups was reached, so some stations use saved prices or your "
+                "planning estimate. This keeps the server from being blocked by Tesla."
+            )
         if price_provider.blocked:
             warnings.append(
                 "Tesla is currently blocking automated price lookups from this server (\"Access Denied\"). "
@@ -603,7 +619,7 @@ async def trip(req: TripRequest) -> TripResponse:
             )
         if not_checked:
             warnings.append(
-                f"Live prices for {len(not_checked)} station(s) weren't checked in time, so they use your planning "
+                f"Live prices for {len(not_checked)} station(s) weren't looked up this time, so they use your planning "
                 "estimate. They're looked up again on the next trip."
             )
         # Stations not checked in time already have their own warning above.

@@ -262,6 +262,8 @@ docker compose exec -u root tesla-route-planner chown app:app /data/supercharger
 docker compose restart
 ```
 
+Known prices also ship in git: `app/data/price_seed.json` is merged into the local store at startup (a newer local price always wins), so a fresh clone or image starts with every price collected so far. Refresh it from your own saved prices with `uv run python -m app.tools.export_prices` and commit the file. Requests to tesla.com are capped with `LIVE_PRICE_LOOKUPS_PER_HOUR` (default 30) so public traffic can't trigger Tesla's bot protection; anything over the cap uses saved prices or the planning estimate.
+
 The first trip on an empty volume takes a minute or two while prices are fetched through Firefox; later trips reuse saved prices. Settings in `docker-compose.yml` can be overridden from the shell or a `.env` file next to it (for example `MAX_CANDIDATE_CHARGERS=30`). There is no login: keep the port on a trusted network or put an authenticating reverse proxy in front of it.
 
 ### Without Docker

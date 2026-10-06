@@ -87,6 +87,52 @@ class ChargerKnowledgeStore:
         except (TypeError, ValueError):
             return None
 
+    def export_price_seed(self, seed_path: Path) -> int:
+        """Write every Tesla-sourced price (not failures, manual entries or replay rates) to a small file for git."""
+        with self._lock:
+            chargers = self._read_unlocked()["chargers"]
+        prices = {}
+        for location_id, record in sorted(chargers.items()):
+            pricing = record.get("pricing") if isinstance(record, dict) else None
+            note = (pricing or {}).get("note") or ""
+            if not pricing or pricing.get("kind") not in {"flat", "time_of_use"}:
+                continue
+            if note.startswith(("User-entered", "Historical observed")) or record.get("pricing_source") == "manual":
+                continue
+            prices[location_id] = {
+                "name": record.get("name"),
+                "pricing": pricing,
+                "pricing_updated_at": record.get("pricing_updated_at"),
+            }
+        seed_path.parent.mkdir(parents=True, exist_ok=True)
+        seed_path.write_text(json.dumps({"version": 1, "prices": prices}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        return len(prices)
+
+    def import_price_seed(self, seed_path: Path) -> int:
+        """Fill in seed prices for stations with no usable local price, or an older one. Returns stations updated."""
+        if not seed_path.exists():
+            return 0
+        try:
+            seed = json.loads(seed_path.read_text(encoding="utf-8")).get("prices") or {}
+        except (OSError, ValueError):
+            return 0
+        updated = 0
+        with self._lock:
+            payload = self._read_unlocked()
+            chargers = payload["chargers"]
+            for location_id, entry in seed.items():
+                record = chargers.setdefault(location_id, {"location_id": location_id, "name": entry.get("name") or location_id})
+                local = record.get("pricing") or {}
+                local_usable = local.get("kind") in {"flat", "time_of_use"}
+                if local_usable and (record.get("pricing_updated_at") or "") >= (entry.get("pricing_updated_at") or ""):
+                    continue
+                record["pricing"] = entry["pricing"]
+                record["pricing_updated_at"] = entry.get("pricing_updated_at")
+                updated += 1
+            if updated:
+                self._write_unlocked(payload)
+        return updated
+
     def remember_manual_pricing(self, location_id: str, schedule: PricingSchedule) -> bool:
         with self._lock:
             payload = self._read_unlocked()

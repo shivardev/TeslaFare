@@ -145,8 +145,14 @@ class TeslaBlockedError(RuntimeError):
     """Tesla's bot protection answered with its "Access Denied" page."""
 
 
+class LiveLookupUnavailable(RuntimeError):
+    """No request was sent to Tesla (blocked cooldown or hourly limit); the caller uses saved data or an estimate."""
+
+
 # After Tesla blocks the browser, stop trying for a while instead of hitting the block for every station.
 BLOCK_COOLDOWN_SECONDS = 15 * 60
+# Tesla answers plain HTTP requests with 403; after one, skip that wasted request for a while.
+HTTP_FORBIDDEN_SKIP_SECONDS = 60 * 60
 
 
 class TeslaPriceProvider(PriceProvider):
@@ -177,6 +183,9 @@ class TeslaPriceProvider(PriceProvider):
         self._selenium_driver = None
         self._fallback_count = 0
         self._blocked_until = 0.0
+        self._http_forbidden_until = 0.0
+        self._recent_requests: list[float] = []
+        self.requests_per_hour = 30
         # Uvicorn uses an event loop on Windows that cannot always create browser
         # subprocesses. Keep all synchronous Playwright work on one dedicated thread.
         self._browser_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tesla-pricing")
@@ -202,6 +211,20 @@ class TeslaPriceProvider(PriceProvider):
         parser.feed(response.text)
         return parser.text()
 
+    def _take_request_budget(self) -> bool:
+        """Count one request to tesla.com against the hourly limit; False when the limit is used up."""
+        now = time.monotonic()
+        self._recent_requests = [t for t in self._recent_requests if now - t < 3600]
+        if len(self._recent_requests) >= self.requests_per_hour:
+            return False
+        self._recent_requests.append(now)
+        return True
+
+    @property
+    def rate_limited(self) -> bool:
+        now = time.monotonic()
+        return len([t for t in self._recent_requests if now - t < 3600]) >= self.requests_per_hour
+
     @property
     def blocked(self) -> bool:
         """True while Tesla is blocking automated lookups and the cooldown hasn't passed."""
@@ -211,12 +234,16 @@ class TeslaPriceProvider(PriceProvider):
         if not self.use_playwright_fallback:
             raise RuntimeError("Playwright fallback disabled")
         if self.blocked:
-            raise TeslaBlockedError("Tesla is blocking automated price lookups; waiting before retrying")
+            raise LiveLookupUnavailable("Tesla is blocking automated price lookups; waiting before retrying")
         # The budget check must happen *inside* the lock. Otherwise many concurrent
         # requests can all pass the check and then queue up for slow browser work.
         async with self._browser_lock:
             if self._fallback_count >= self.max_playwright_fallbacks:
                 raise RuntimeError("Playwright fallback budget exhausted")
+            if self.blocked:
+                raise LiveLookupUnavailable("Tesla is blocking automated price lookups; waiting before retrying")
+            if not self._take_request_budget():
+                raise LiveLookupUnavailable("Hourly live price lookup limit reached")
             self._fallback_count += 1
             try:
                 loop = asyncio.get_running_loop()
@@ -374,13 +401,20 @@ class TeslaPriceProvider(PriceProvider):
             if cached:
                 return PricingSchedule.model_validate(cached)
 
+        if self.blocked:
+            raise LiveLookupUnavailable("Tesla is blocking automated price lookups; waiting before retrying")
         error_parts: list[str] = []
         schedule: PricingSchedule | None = None
-        try:
-            text = await self._http_text(url)
-            schedule = parse_tesla_pricing_text(text, url)
-        except Exception as exc:  # provider failures are surfaced in debug state
-            error_parts.append(f"HTTP: {type(exc).__name__}: {exc}")
+        if time.monotonic() >= self._http_forbidden_until:
+            if not self._take_request_budget():
+                raise LiveLookupUnavailable("Hourly live price lookup limit reached")
+            try:
+                text = await self._http_text(url)
+                schedule = parse_tesla_pricing_text(text, url)
+            except Exception as exc:  # provider failures are surfaced in debug state
+                if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 403:
+                    self._http_forbidden_until = time.monotonic() + HTTP_FORBIDDEN_SKIP_SECONDS
+                error_parts.append(f"HTTP: {type(exc).__name__}: {exc}")
 
         if (schedule is None or schedule.kind == "unknown") and self.use_playwright_fallback:
             try:

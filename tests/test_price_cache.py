@@ -56,7 +56,7 @@ def test_failed_refresh_keeps_the_known_price(monkeypatch):
 
 def test_access_denied_pauses_browser_lookups(tmp_path):
     from app.db.cache import CacheDB
-    from app.pricing.tesla import TeslaBlockedError, TeslaPriceProvider
+    from app.pricing.tesla import LiveLookupUnavailable, TeslaBlockedError, TeslaPriceProvider
 
     provider = TeslaPriceProvider(CacheDB(tmp_path / "c.sqlite3"), 5, "ua", 0, True, 10, True, "firefox", "selenium")
     calls = []
@@ -71,7 +71,7 @@ def test_access_denied_pauses_browser_lookups(tmp_path):
         for _ in range(2):
             try:
                 await provider._browser_text("https://www.tesla.com/findus/location/supercharger/x")
-            except TeslaBlockedError:
+            except (TeslaBlockedError, LiveLookupUnavailable):
                 pass
 
     asyncio.run(run())
@@ -103,3 +103,35 @@ def test_recent_failure_is_not_retried_but_old_failure_is(monkeypatch):
     assert calls == 0
     schedule, calls, _ = run(monkeypatch, saved=old, live=FLAT)
     assert calls == 1 and schedule.kind == "flat"
+
+
+def test_hourly_limit_stops_requests_to_tesla(tmp_path):
+    from app.db.cache import CacheDB
+    from app.pricing.tesla import TeslaPriceProvider
+    provider = TeslaPriceProvider(CacheDB(tmp_path / "c.sqlite3"), 5, "ua", 0, True, 10, True, "firefox", "selenium")
+    provider.requests_per_hour = 3
+    assert [provider._take_request_budget() for _ in range(4)] == [True, True, True, False]
+    assert provider.rate_limited
+    provider._browser_executor.shutdown(wait=False)
+
+
+def test_price_seed_round_trip_fills_missing_prices_only(tmp_path):
+    import json
+    from app.chargers.knowledge_store import ChargerKnowledgeStore
+    source = ChargerKnowledgeStore(tmp_path / "source.json")
+    source.remember_pricing(STATION, FLAT)
+    other = STATION.model_copy(update={"id": "s2", "location_id": "s2", "name": "Failed"})
+    source.remember_pricing(other, FAILED)
+    seed = tmp_path / "seed.json"
+    assert source.export_price_seed(seed) == 1  # failures are not exported
+    assert set(json.loads(seed.read_text(encoding="utf-8"))["prices"]) == {"s1"}
+
+    fresh = ChargerKnowledgeStore(tmp_path / "fresh.json")
+    assert fresh.import_price_seed(seed) == 1
+    assert fresh.pricing("s1").bands[0].price_per_kwh == 0.39
+    assert fresh.import_price_seed(seed) == 0  # already up to date
+
+    newer = PricingSchedule(kind="flat", bands=[PriceBand(start_minute=0, end_minute=0, price_per_kwh=0.45)])
+    fresh.remember_pricing(STATION, newer)
+    assert fresh.import_price_seed(seed) == 0  # a newer local price wins
+    assert fresh.pricing("s1").bands[0].price_per_kwh == 0.45

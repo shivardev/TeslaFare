@@ -52,6 +52,10 @@ class Settings:
     # A trip waits at most this long for live prices; stations still pending use the fallback estimate.
     pricing_deadline_seconds: float = float(os.getenv("PRICING_DEADLINE_SECONDS", "45"))
     # A station whose lookup failed is not retried for this long (stops one bad station stalling every trip).
+    # Cap on requests to tesla.com per hour across all visitors, so public traffic can't trigger Tesla's bot block.
+    live_price_lookups_per_hour: int = int(os.getenv("LIVE_PRICE_LOOKUPS_PER_HOUR", "30"))
+    # Prices committed to git; merged into the local store at startup so fresh clones start with known prices.
+    price_seed_path: Path = Path(os.getenv("PRICE_SEED_PATH", "app/data/price_seed.json"))
     pricing_retry_failed_minutes: float = float(os.getenv("PRICING_RETRY_FAILED_MINUTES", "30"))
     user_agent: str = "teslafare/0.1 open-source-route-planner"
 
