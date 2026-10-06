@@ -233,6 +233,37 @@ Trip inputs are necessarily sent to the configured geocoding and routing provide
 
 ## Deploying
 
+### Docker (recommended)
+
+The image bundles the app, headless Firefox and geckodriver (needed because Tesla's public price pages reject plain HTTP requests).
+
+```bash
+git clone <this repo> && cd Tesla-Route-Planner
+docker compose up -d --build
+```
+
+Open `http://<server-ip>:8000`. The container is named `tesla-route-planner`, restarts automatically (`unless-stopped`, including after a reboot once Docker starts), and reports health from `/health`.
+
+| Task | Command |
+|---|---|
+| Status and health | `docker ps --filter name=tesla-route-planner` |
+| Live logs | `docker compose logs -f` |
+| Update after `git pull` | `docker compose up -d --build` |
+| Use another host port | `HOST_PORT=9000 docker compose up -d` |
+| Stop | `docker compose down` (keeps saved data) |
+
+Saved prices and caches live in the `tesla-data` named volume, so they survive restarts and rebuilds. `docker compose down -v` deletes them. To start from data you already collected locally:
+
+```bash
+docker compose cp .data/superchargers.json tesla-route-planner:/data/superchargers.json
+docker compose exec -u root tesla-route-planner chown app:app /data/superchargers.json
+docker compose restart
+```
+
+The first trip on an empty volume takes a minute or two while prices are fetched through Firefox; later trips reuse saved prices. Settings in `docker-compose.yml` can be overridden from the shell or a `.env` file next to it (for example `MAX_CANDIDATE_CHARGERS=30`). There is no login: keep the port on a trusted network or put an authenticating reverse proxy in front of it.
+
+### Without Docker
+
 A basic single-instance deployment can run:
 
 ```bash
