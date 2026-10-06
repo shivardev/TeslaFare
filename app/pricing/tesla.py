@@ -4,6 +4,7 @@ import asyncio
 import html
 import json
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -140,6 +141,14 @@ def parse_tesla_pricing_text(text: str, source_url: str | None = None) -> Pricin
     return PricingSchedule(kind="unknown", source_url=source_url, note="No reliable Tesla-owner $/kWh schedule found")
 
 
+class TeslaBlockedError(RuntimeError):
+    """Tesla's bot protection answered with its "Access Denied" page."""
+
+
+# After Tesla blocks the browser, stop trying for a while instead of hitting the block for every station.
+BLOCK_COOLDOWN_SECONDS = 15 * 60
+
+
 class TeslaPriceProvider(PriceProvider):
     def __init__(
         self,
@@ -167,6 +176,7 @@ class TeslaPriceProvider(PriceProvider):
         self._browser = None
         self._selenium_driver = None
         self._fallback_count = 0
+        self._blocked_until = 0.0
         # Uvicorn uses an event loop on Windows that cannot always create browser
         # subprocesses. Keep all synchronous Playwright work on one dedicated thread.
         self._browser_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tesla-pricing")
@@ -192,9 +202,16 @@ class TeslaPriceProvider(PriceProvider):
         parser.feed(response.text)
         return parser.text()
 
+    @property
+    def blocked(self) -> bool:
+        """True while Tesla is blocking automated lookups and the cooldown hasn't passed."""
+        return time.monotonic() < self._blocked_until
+
     async def _browser_text(self, url: str) -> str:
         if not self.use_playwright_fallback:
             raise RuntimeError("Playwright fallback disabled")
+        if self.blocked:
+            raise TeslaBlockedError("Tesla is blocking automated price lookups; waiting before retrying")
         # The budget check must happen *inside* the lock. Otherwise many concurrent
         # requests can all pass the check and then queue up for slow browser work.
         async with self._browser_lock:
@@ -204,6 +221,9 @@ class TeslaPriceProvider(PriceProvider):
             try:
                 loop = asyncio.get_running_loop()
                 return await loop.run_in_executor(self._browser_executor, self._browser_text_sync, url)
+            except TeslaBlockedError:
+                self._blocked_until = time.monotonic() + BLOCK_COOLDOWN_SECONDS
+                raise
             except Exception as exc:
                 if self.browser_backend == "selenium":
                     # A single station can be missing, renamed, or temporarily fail.
@@ -243,6 +263,8 @@ class TeslaPriceProvider(PriceProvider):
                 if "get-charger-details" in response.url.lower() else None,
             )
             page.goto(map_url, wait_until="domcontentloaded", timeout=max(30000, int(self.timeout * 1000 * 3)))
+            if "access denied" in (page.title() or "").lower():
+                raise TeslaBlockedError("Tesla returned Access Denied")
             if not detail_responses:
                 try:
                     page.wait_for_event(
@@ -277,16 +299,34 @@ class TeslaPriceProvider(PriceProvider):
             options.set_preference("permissions.default.geo", 2)
             options.set_preference("geo.enabled", False)
             self._selenium_driver = webdriver.Firefox(options=options)
-            self._selenium_driver.set_page_load_timeout(max(30, int(self.timeout * 3)))
+            self._selenium_driver.set_page_load_timeout(max(15, int(self.timeout * 2)))
             self._selenium_driver.set_script_timeout(30)
 
-        driver = self._selenium_driver
+        try:
+            return self._selenium_fetch(self._selenium_driver, url)
+        except Exception:
+            # A crashed or wedged Firefox fails every later lookup; start a fresh one next time.
+            try:
+                self._selenium_driver.title
+            except Exception:
+                try:
+                    self._selenium_driver.quit()
+                except Exception:
+                    pass
+                self._selenium_driver = None
+            raise
+
+    def _selenium_fetch(self, driver, url: str) -> str:
+        from selenium.webdriver.support.ui import WebDriverWait
+
         location_id = urlparse(url).path.rstrip("/").split("/")[-1]
         map_url = (
             "https://www.tesla.com/findus?filters=tesla_exclusive_superchargers"
             f"&location={quote(location_id)}"
         )
         driver.get(map_url)
+        if "access denied" in (driver.title or "").lower():
+            raise TeslaBlockedError("Tesla returned Access Denied")
 
         def detail_urls(current_driver):
             return current_driver.execute_script(
@@ -294,7 +334,7 @@ class TeslaPriceProvider(PriceProvider):
                 ".map(e => e.name).filter(u => u.includes('get-charger-details'))"
             )
 
-        resource_urls = WebDriverWait(driver, 30).until(detail_urls)
+        resource_urls = WebDriverWait(driver, 12).until(detail_urls)
         payload = driver.execute_async_script(
             "const url=arguments[0], done=arguments[arguments.length-1];"
             "fetch(url,{credentials:'include'}).then(r => {"
@@ -348,6 +388,8 @@ class TeslaPriceProvider(PriceProvider):
                 browser_schedule = parse_tesla_pricing_text(text, url)
                 if browser_schedule.kind != "unknown":
                     schedule = browser_schedule
+            except TeslaBlockedError as exc:
+                error_parts.append(f"Blocked by Tesla: {exc}")
             except Exception as exc:
                 error_parts.append(f"Playwright: {type(exc).__name__}: {exc}")
 

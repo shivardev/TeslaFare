@@ -101,7 +101,7 @@ Open **Pricing** in the app, or visit `/debug/prices`, to inspect the most recen
 git clone https://github.com/shivardev/TeslaFare.git
 cd TeslaFare
 uv sync
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Then open [http://localhost:8000](http://localhost:8000).

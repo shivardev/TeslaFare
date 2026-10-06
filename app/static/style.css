@@ -459,3 +459,7 @@ tr.detail-row.open .detail-wrap { grid-template-rows: 1fr; }
   .detail { grid-template-columns: 1fr; gap: 16px; padding: 6px 14px 16px; }
   .segmented { align-self: flex-start; }
 }
+
+.progress-right { display: inline-flex; align-items: center; gap: 14px; }
+#skip-pricing { margin-left: 0; color: var(--amber); }
+#skip-pricing:disabled { opacity: .5; cursor: default; }

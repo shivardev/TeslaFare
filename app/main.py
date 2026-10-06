@@ -258,11 +258,24 @@ async def _fill_timezones(candidates: list[Charger]) -> None:
 USABLE_PRICE_KINDS = {"flat", "time_of_use"}
 
 
+# progress_id -> event set when the user asks to stop waiting for live prices.
+pricing_skip_events: dict[str, asyncio.Event] = {}
+
+
+def _recent_failure(schedule: PricingSchedule | None) -> bool:
+    if schedule is None or schedule.kind in USABLE_PRICE_KINDS or schedule.fetched_at is None:
+        return False
+    fetched = schedule.fetched_at if schedule.fetched_at.tzinfo else schedule.fetched_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - fetched < timedelta(minutes=settings.pricing_retry_failed_minutes)
+
+
 async def _fetch_prices(
     candidates: list[Charger],
     use_charger_cache: bool = True,
     progress_id: str | None = None,
 ) -> dict[str, PricingSchedule]:
+    """Prices for each candidate. Stations still pending when the deadline passes (or when the user
+    skips) are left out, so the caller falls back to the planning estimate for them."""
     price_provider.reset_browser_budget()
     semaphore = asyncio.Semaphore(8)
 
@@ -270,8 +283,8 @@ async def _fetch_prices(
         async with semaphore:
             saved = charger_knowledge.pricing(charger.location_id)
             saved_usable = saved is not None and saved.kind in USABLE_PRICE_KINDS
-            # Only real prices are reused; a saved failure ("unknown") is retried on the next trip.
-            if use_charger_cache and saved_usable:
+            # Real prices are reused; a failure is retried, but not again within the retry window.
+            if use_charger_cache and (saved_usable or _recent_failure(saved)):
                 return charger, saved, "cached"
             schedule = await price_provider.get_prices(charger, force_refresh=not use_charger_cache)
             if schedule.kind not in USABLE_PRICE_KINDS and saved_usable:
@@ -280,38 +293,61 @@ async def _fetch_prices(
             charger_knowledge.remember_pricing(charger, schedule)
             return charger, schedule, "live"
 
-    tasks = [asyncio.create_task(one(c)) for c in candidates]
+    skip = pricing_skip_events.setdefault(progress_id, asyncio.Event()) if progress_id else asyncio.Event()
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + settings.pricing_deadline_seconds
+    tasks = {asyncio.create_task(one(c)): c for c in candidates}
+    pending = set(tasks)
     pricing: dict[str, PricingSchedule] = {}
     completed = 0
-    for task in asyncio.as_completed(tasks):
-        try:
-            charger, schedule, source = await task
-            pricing[charger.location_id] = schedule
-            state = trip_progress.get(progress_id) if progress_id else None
-            if state is not None:
-                rows = state.setdefault("chargers", [])
-                row = next((item for item in rows if item["station_id"] == charger.location_id), None)
-                if row is not None:
-                    is_manual = bool(schedule.note and schedule.note.startswith("User-entered"))
-                    row.update({
-                        "status": "found" if schedule.kind in {"flat", "time_of_use"} else "unknown",
-                        "source": "manual" if is_manual else source,
-                        "pricing": schedule.model_dump(mode="json"),
-                    })
-        except Exception as exc:
-            log.warning("Pricing fetch task failed: %s", exc)
-        completed += 1
-        known = sum(1 for p in pricing.values() if p.kind in {"flat", "time_of_use"})
-        _publish_progress(
-            progress_id,
-            stage="pricing",
-            message=f"Checked {completed} of {len(tasks)} charger prices; found {known}",
-            pricing_completed=completed,
-            pricing_total=len(tasks),
-            pricing_found=known,
+    try:
+        while pending and not skip.is_set():
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                break
+            skip_wait = asyncio.create_task(skip.wait())
+            done, _ = await asyncio.wait(pending | {skip_wait}, timeout=remaining, return_when=asyncio.FIRST_COMPLETED)
+            skip_wait.cancel()
+            for task in done - {skip_wait}:
+                pending.discard(task)
+                try:
+                    charger, schedule, source = task.result()
+                    pricing[charger.location_id] = schedule
+                    state = trip_progress.get(progress_id) if progress_id else None
+                    if state is not None:
+                        rows = state.setdefault("chargers", [])
+                        row = next((item for item in rows if item["station_id"] == charger.location_id), None)
+                        if row is not None:
+                            is_manual = bool(schedule.note and schedule.note.startswith("User-entered"))
+                            row.update({
+                                "status": "found" if schedule.kind in USABLE_PRICE_KINDS else "unknown",
+                                "source": "manual" if is_manual else source,
+                                "pricing": schedule.model_dump(mode="json"),
+                            })
+                except Exception as exc:
+                    log.warning("Pricing fetch task failed: %s", exc)
+                completed += 1
+                known = sum(1 for p in pricing.values() if p.kind in USABLE_PRICE_KINDS)
+                _publish_progress(
+                    progress_id,
+                    stage="pricing",
+                    message=f"Checked {completed} of {len(tasks)} charger prices; found {known}",
+                    pricing_completed=completed,
+                    pricing_total=len(tasks),
+                    pricing_found=known,
+                )
+                if completed == len(tasks) or completed % 5 == 0:
+                    log.info("Pricing progress: %d/%d checked, %d usable", completed, len(tasks), known)
+    finally:
+        for task in pending:
+            task.cancel()
+        if progress_id:
+            pricing_skip_events.pop(progress_id, None)
+    if pending:
+        log.info(
+            "Pricing stopped with %d of %d stations pending (%s)",
+            len(pending), len(tasks), "skipped by user" if skip.is_set() else "deadline reached",
         )
-        if completed == len(tasks) or completed % 5 == 0:
-            log.info("Pricing progress: %d/%d checked, %d usable", completed, len(tasks), known)
     return pricing
 
 
@@ -357,6 +393,15 @@ async def trip_progress_status(progress_id: str):
     if state is None:
         return {"stage": "waiting", "message": "Waiting for trip calculation to start", "chargers": []}
     return state
+
+
+@app.post("/api/trip/progress/{progress_id}/skip-pricing")
+async def skip_pricing(progress_id: str):
+    """Stop waiting for live prices on a running trip; pending stations use the planning estimate."""
+    event = pricing_skip_events.get(progress_id)
+    if event is not None:
+        event.set()
+    return {"ok": event is not None}
 
 
 @app.post("/api/chargers/{location_id}/manual-price")
@@ -479,6 +524,7 @@ async def trip(req: TripRequest) -> TripResponse:
         )
 
         pricing = await _fetch_prices(candidates, req.use_charger_cache, req.progress_id)
+        not_checked = [c for c in candidates if c.location_id not in pricing]
         replay = REPLAY_TRIPS.get(req.replay_scenario) if req.replay_scenario else None
         if replay:
             replay_rates = {station_id: rate for station_id, _, rate in replay["stations"]}
@@ -550,15 +596,27 @@ async def trip(req: TripRequest) -> TripResponse:
         )
 
         warnings: list[str] = []
-        if unknown:
+        if price_provider.blocked:
+            warnings.append(
+                "Tesla is currently blocking automated price lookups from this server (\"Access Denied\"). "
+                "Stations without a saved price use your planning estimate; lookups resume automatically in about 15 minutes."
+            )
+        if not_checked:
+            warnings.append(
+                f"Live prices for {len(not_checked)} station(s) weren't checked in time, so they use your planning "
+                "estimate. They're looked up again on the next trip."
+            )
+        # Stations not checked in time already have their own warning above.
+        checked_unknown = unknown - len(not_checked)
+        if checked_unknown > 0:
             if estimated:
                 warnings.append(
-                    f"Live Tesla pricing was unavailable for {unknown} candidate Supercharger(s). "
+                    f"Live Tesla pricing was unavailable for {checked_unknown} candidate Supercharger(s). "
                     f"Their costs use your ${req.fallback_price_per_kwh:.2f}/kWh planning estimate and are not live quotes."
                 )
             else:
                 warnings.append(
-                    f"{unknown} candidate Supercharger(s) had PRICE UNKNOWN and were excluded from cost optimization. "
+                    f"{checked_unknown} candidate Supercharger(s) had PRICE UNKNOWN and were excluded from cost optimization. "
                     "See /debug/prices for fetch details."
                 )
         if timezone_missing:

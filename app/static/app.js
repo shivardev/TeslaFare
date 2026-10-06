@@ -18,6 +18,7 @@ let explainToken = 0;
 const whatIfResults = new Map();
 // User stops between origin and destination, visited strictly in this order.
 let stopsState = [];
+const SAVED_TRIP_KEY = 'teslafare.lastTrip.v1';
 const DWELL_OPTIONS = [[0, 'Pass through'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours'], [180, '3 hours'], [240, '4 hours'], [480, '8 hours'], [600, 'Overnight (10 h)']];
 const stopLetter = index => String.fromCharCode(66 + index);  // A is the origin
 
@@ -50,6 +51,57 @@ function placeLabel(text) {
   return parts.length > 1 ? {city: parts.at(-2), region: parts.at(-1)} : {city: parts[0] || '', region: ''};
 }
 function placeText(text) { const p = placeLabel(text); return p.region ? `${p.city}, ${p.region}` : p.city; }
+
+function saveLastTrip(request) {
+  if (!request || request.replay_scenario) return;
+  try {
+    localStorage.setItem(SAVED_TRIP_KEY, JSON.stringify({
+      version: 1,
+      saved_at: new Date().toISOString(),
+      request,
+    }));
+  } catch (_) {
+    // Planning must continue when storage is disabled or full.
+  }
+}
+
+function restoreLastTrip() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_TRIP_KEY) || 'null');
+    const request = saved?.version === 1 ? saved.request : null;
+    if (!request || typeof request.from_location !== 'string' || typeof request.to_location !== 'string') return false;
+
+    document.getElementById('from').value = request.from_location;
+    document.getElementById('to').value = request.to_location;
+    stopsState = Array.isArray(request.stops) ? request.stops.slice(0, 8)
+      .filter(stop => stop && typeof stop.location === 'string')
+      .map(stop => ({location: stop.location, dwell: Number(stop.dwell_minutes) || 0})) : [];
+
+    const values = {
+      'fallback-price': request.fallback_price_per_kwh,
+      'starting-soc': request.starting_soc,
+      'min-charger-soc': request.min_charger_soc,
+      'destination-soc': request.destination_soc,
+      'custom-battery-kwh': request.custom_battery_usable_kwh,
+      'custom-whmi': request.custom_highway_wh_per_mile,
+      'custom-peak-kw': request.custom_peak_charge_kw,
+    };
+    for (const [id, value] of Object.entries(values)) {
+      if (value !== null && value !== undefined && Number.isFinite(Number(value))) document.getElementById(id).value = value;
+    }
+    const vehicle = document.getElementById('vehicle-profile');
+    if ([...vehicle.options].some(option => option.value === request.vehicle_profile_id)) vehicle.value = request.vehicle_profile_id;
+    if (typeof request.use_charger_cache === 'boolean') document.getElementById('use-charger-cache').checked = request.use_charger_cache;
+
+    // Do not restore an expired departure time; start with the fresh default instead.
+    if (request.desired_departure_time && new Date(request.desired_departure_time) > new Date()) {
+      document.getElementById('desired-departure').value = request.desired_departure_time.slice(0, 16);
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 // "Lexington, KY - Meijer Way" -> "Lexington · Meijer Way"; "Lexington, KY" -> "Lexington Supercharger".
 function stationName(name) {
   if (/supercharger/i.test(name)) return name;
@@ -797,6 +849,9 @@ function updateProgressPanel(state) {
   document.getElementById('progress-count').textContent = optimizing ? `${departureDone}/${departureTotal} departure times` : total ? `${done}/${total} checked · ${state.pricing_found || 0} prices found` : '';
   document.getElementById('progress-bar').style.width = optimizing ? `${Math.round(departureDone / departureTotal * 100)}%` : total ? `${Math.round(done / total * 100)}%` : '8%';
   if (state.chargers?.length && !state.complete) renderLiveStations(state.chargers);
+  const skip = document.getElementById('skip-pricing');
+  skip.hidden = !(state.stage === 'pricing' && !state.complete && total && done < total);
+  if (skip.hidden) skip.disabled = false;
 }
 async function pollProgress(progressId, token) {
   while (token === progressPollToken) {
@@ -885,7 +940,7 @@ document.getElementById('stations').addEventListener('click', async event => {
 
 document.getElementById('trip-form').addEventListener('submit', event => {
   event.preventDefault();
-  runTrip({
+  const request = {
     from_location:document.getElementById('from').value,
     to_location:document.getElementById('to').value,
     stops:replayScenario ? [] : stopsPayload(),
@@ -902,7 +957,9 @@ document.getElementById('trip-form').addEventListener('submit', event => {
     departure_window_hours:12,
     replay_scenario:replayScenario,
     excluded_station_ids: []
-  });
+  };
+  saveLastTrip(request);
+  runTrip(request);
 });
 
 document.getElementById('load-replay').addEventListener('click', event => {
@@ -916,6 +973,13 @@ document.getElementById('load-replay').addEventListener('click', event => {
   renderStopsEditor();
 });
 
+document.getElementById('skip-pricing').addEventListener('click', async event => {
+  if (!lastRequest?.progress_id) return;
+  event.currentTarget.disabled = true;
+  try {
+    await fetch(`/api/trip/progress/${encodeURIComponent(lastRequest.progress_id)}/skip-pricing`, {method: 'POST'});
+  } catch (_) { /* The trip still finishes at the server's deadline. */ }
+});
 document.getElementById('edit-trip').addEventListener('click', () => toggleForm());
 document.getElementById('open-settings').addEventListener('click', () => { toggleForm(true); document.getElementById('fallback-price').focus(); });
 document.getElementById('trip-form').addEventListener('input', () => { if (!tripData) updateSummary(); });
@@ -927,6 +991,7 @@ document.getElementById('custom-peak-kw').addEventListener('input', updateVehicl
 const defaultDeparture = new Date(Date.now() + 60 * 60 * 1000);
 defaultDeparture.setMinutes(Math.ceil(defaultDeparture.getMinutes() / 30) * 30, 0, 0);
 document.getElementById('desired-departure').value = new Date(defaultDeparture.getTime() - defaultDeparture.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+restoreLastTrip();
 updateVehicleAssumption();
 setupStopsEditor();
 renderStopsEditor();

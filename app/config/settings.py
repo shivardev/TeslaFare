@@ -49,6 +49,10 @@ class Settings:
     charger_knowledge_path: Path = Path(os.getenv("CHARGER_KNOWLEDGE_PATH", ".data/superchargers.json"))
     request_timeout_seconds: float = 20.0
     pricing_request_timeout_seconds: float = float(os.getenv("PRICING_REQUEST_TIMEOUT_SECONDS", "8"))
+    # A trip waits at most this long for live prices; stations still pending use the fallback estimate.
+    pricing_deadline_seconds: float = float(os.getenv("PRICING_DEADLINE_SECONDS", "45"))
+    # A station whose lookup failed is not retried for this long (stops one bad station stalling every trip).
+    pricing_retry_failed_minutes: float = float(os.getenv("PRICING_RETRY_FAILED_MINUTES", "30"))
     user_agent: str = "teslafare/0.1 open-source-route-planner"
 
 
