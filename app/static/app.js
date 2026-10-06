@@ -24,7 +24,7 @@ const stopLetter = index => String.fromCharCode(66 + index);  // A is the origin
 const STATUS_LABELS = {verified:'Live', cached:'Cached', historical:'Historical', manual:'Manual', estimated:'Estimated', unknown:'Unknown', fetching:'Fetching', excluded:'Excluded'};
 const CATEGORY_LABELS = {'CHEAPEST':'Lowest cost', 'CHEAP + FAST':'Cheap + fast', 'BALANCED':'Balanced', 'FASTEST REASONABLE':'Fastest', 'MOST EXPENSIVE REASONABLE':'Highest cost', 'WHAT IF':'What-if'};
 const icon = (id, cls = 'ico') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
-const teslaT = `<svg><use href="#tesla-t"/></svg>`;
+const boltIcon = `<svg><use href="#i-bolt"/></svg>`;
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -284,7 +284,7 @@ function renderRecommended(plan) {
     const explanation = bridgeCharge
       ? `<div class="stop-explanation">${icon('i-info')}<span><b>Bridge charge</b> — only enough energy is bought here to reach the cheaper $${next.price_per_kwh.toFixed(2)}/kWh station while keeping your ${chargerReserve}% charger reserve.</span></div>`
       : '';
-    return `<div class="stop-item"><span class="stop-badge">${teslaT}</span>
+    return `<div class="stop-item"><span class="stop-badge">${boltIcon}</span>
       <${tag} class="stop-card"${href}>
         <span><b>${esc(stationName(s.station_name))}</b><small>${esc(where)} · ${fmtMinutes(s.charging_minutes)} · arrive ${fmtClock(s.arrival_time)}</small></span>
         <span class="soc">${Math.round(s.arrival_soc)}% ${icon('i-arrow')} ${Math.round(s.departure_soc)}%</span>
@@ -383,7 +383,7 @@ function drawMap(plan) {
     label(marker, `${stopLetter(w.index)} · ${where.city}`, drive == null ? action : `${fmtMinutes(drive)} drive · ${action}`, 'left');
   });
   (plan?.stops || []).forEach(s => {
-    const marker = add(L.marker([s.coordinate.lat, s.coordinate.lon], {icon: L.divIcon({className: '', html: `<div class="tesla-pin">${teslaT}</div>`, iconSize: [30, 30], iconAnchor: [15, 36]})}));
+    const marker = add(L.marker([s.coordinate.lat, s.coordinate.lon], {icon: L.divIcon({className: '', html: `<div class="charge-pin">${boltIcon}</div>`, iconSize: [30, 30], iconAnchor: [15, 36]})}));
     const drive = travelByArrival.get(s.arrival_time);
     label(marker, placeLabel(chargerById(s.station_id)?.address).city || shortName(s.station_name), `${fmtMinutes(drive || 0)} drive · ${fmtMinutes(s.charging_minutes)} charge`);
     const c = chargerById(s.station_id);
@@ -647,7 +647,7 @@ function renderStations() {
     const pinned = c.station_id === pinnedStation ? ' pinned' : '';
     return `<tr class="station-row${open}${pinned}${stop ? ' on-route' : ''}${c.user_excluded ? ' excluded' : ''}" data-id="${esc(c.station_id)}" tabindex="0" aria-expanded="${Boolean(open)}">
         <td class="num">${i + 1}</td>
-        <td><div class="station-cell"><span class="mini-t ${c.eligible && !c.user_excluded ? '' : 'off'}">${teslaT}</span><span><b class="st-name">${esc(stationName(c.station_name))}</b><small>${esc(cityState(c.address) || '')}</small></span></div></td>
+        <td><div class="station-cell"><span class="mini-charge ${c.eligible && !c.user_excluded ? '' : 'off'}">${boltIcon}</span><span><b class="st-name">${esc(stationName(c.station_name))}</b><small>${esc(cityState(c.address) || '')}</small></span></div></td>
         <td class="leg-miles">${e?.miles_from_last_charge != null ? `<b>${Math.round(e.miles_from_last_charge)} mi</b><small>from ${esc(e.last_charge_name === 'Start' ? 'start' : stationName(e.last_charge_name))}</small>` : '<span class="muted">—</span>'}</td>
         <td class="off-route">${c.corridor_distance_miles.toFixed(1)} mi<small>${c.detour_minutes == null ? '' : `${Math.round(c.detour_minutes)} min detour`}</small></td>
         <td class="price-cell">${priceCell}</td>
@@ -726,7 +726,7 @@ function renderLiveStations(rows) {
     <div class="section-head"><div><h2 class="kicker">Checking charging stations (${rows.length})</h2><p>Retrieving Supercharger prices along the route…</p></div>
       <div class="found-count"><div><i class="dot"></i>${rows.length} nearby chargers found <span class="sepbar">|</span> ${done} of ${rows.length} checked</div><div class="bar-track"><span style="width:${Math.round(done / rows.length * 100)}%"></span></div></div></div>
     <div class="table-wrap"><table><thead><tr><th>#</th><th>Station</th><th>Price ($/kWh)</th><th>Price status</th></tr></thead><tbody>
-      ${rows.map((r, i) => `<tr><td>${i + 1}</td><td><div class="station-cell"><span class="mini-t">${teslaT}</span>${esc(stationName(r.station_name))}</div></td><td>${priceRange(r.pricing) || '—'}</td><td>${statusHtml(statusOf(r))}</td></tr>`).join('')}
+      ${rows.map((r, i) => `<tr><td>${i + 1}</td><td><div class="station-cell"><span class="mini-charge">${boltIcon}</span>${esc(stationName(r.station_name))}</div></td><td>${priceRange(r.pricing) || '—'}</td><td>${statusHtml(statusOf(r))}</td></tr>`).join('')}
     </tbody></table></div>`;
 }
 

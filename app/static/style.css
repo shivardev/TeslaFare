@@ -33,7 +33,7 @@ a { color: inherit; }
 /* Top bar */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 36px 0; }
 .brand { display: flex; align-items: center; gap: 18px; }
-.brand-logo { width: 40px; height: 40px; color: var(--red); }
+.brand-logo { width: 40px; height: 40px; padding: 7px; border-radius: 10px; background: var(--red); color: #fff; }
 .brand b { display: block; font-size: 19px; font-weight: 650; letter-spacing: -.01em; }
 .brand span { display: block; margin-top: 2px; color: var(--soft); font-size: 13px; }
 .tabs { display: flex; gap: 6px; }
@@ -145,8 +145,8 @@ button:disabled { opacity: .5; cursor: wait; }
 .leaflet-container .leaflet-tooltip-top:not(.map-label)::before { border-top-color: var(--line-strong); }
 .pin-icon { color: var(--red); filter: drop-shadow(0 2px 4px #000c); }
 .pin-icon svg { width: 100%; height: 100%; }
-.tesla-pin { display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--red); box-shadow: 0 3px 8px #000b; }
-.tesla-pin svg { width: 16px; height: 16px; color: #fff; transform: rotate(45deg); }
+.charge-pin { display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--red); box-shadow: 0 3px 8px #000b; }
+.charge-pin svg { width: 16px; height: 16px; color: #fff; transform: rotate(45deg); }
 .origin-dot { width: 22px; height: 22px; border: 3px solid #fff; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px #22c55e33; }
 .leaflet-tooltip.map-label { padding: 0; border: 0; background: none; box-shadow: none; color: #fff; font-size: 14px; font-weight: 600; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
 .leaflet-tooltip.map-label::before { display: none; }
@@ -269,9 +269,9 @@ tbody tr:hover td { background: #0f1013; }
 tr.excluded td { opacity: .45; }
 tr.on-route td:first-child { box-shadow: inset 2px 0 0 var(--red); }
 .station-cell { display: flex; align-items: center; gap: 14px; }
-.mini-t { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; background: var(--red); flex: none; }
-.mini-t svg { width: 14px; height: 14px; color: #fff; }
-.mini-t.off { background: #3a3d44; }
+.mini-charge { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; background: var(--red); flex: none; }
+.mini-charge svg { width: 14px; height: 14px; color: #fff; }
+.mini-charge.off { background: #3a3d44; }
 .status { display: inline-flex; align-items: center; gap: 8px; }
 .status i { width: 9px; height: 9px; border-radius: 50%; }
 .status.verified { color: #4ade80; } .status.verified i { background: var(--green); }

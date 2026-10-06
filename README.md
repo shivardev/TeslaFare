@@ -313,7 +313,6 @@ app/
 
 tests/              # Offline unit and behavior tests
 docs/images/        # README screenshots
-design/             # Product design references
 ```
 
 ## Known limitations
