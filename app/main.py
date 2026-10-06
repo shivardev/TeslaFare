@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.chargers.supercharge_info import SuperchargeInfoProvider
 from app.chargers.knowledge_store import ChargerKnowledgeStore
@@ -73,8 +73,6 @@ price_provider = TeslaPriceProvider(
     settings.tesla_playwright_browser,
     settings.tesla_browser_backend,
 )
-energy = EnergyModel(vehicle_cfg.BATTERY_USABLE_KWH, vehicle_cfg.HIGHWAY_WH_PER_MILE)
-charging = ChargingModel(vehicle_cfg.BATTERY_USABLE_KWH, vehicle_cfg.CHARGING_CURVE_KW)
 optimizer_cfg = OptimizerConfig(
     starting_soc=vehicle_cfg.STARTING_SOC,
     min_charger_soc=vehicle_cfg.MIN_CHARGER_SOC,
@@ -100,17 +98,17 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 trip_progress: dict[str, dict] = {}
 # Recent trips' optimizer inputs, so the UI can ask "why not this charger?" without recomputing.
 TRIP_CONTEXT_LIMIT = 20
-trip_contexts: dict[str, tuple[GraphContext, OptimizerConfig]] = {}
+trip_contexts: dict[str, tuple[GraphContext, OptimizerConfig, EnergyModel, ChargingModel]] = {}
 
 
-def _remember_trip(trip_id: str, graph: GraphContext, cfg: OptimizerConfig) -> None:
+def _remember_trip(trip_id: str, graph: GraphContext, cfg: OptimizerConfig, energy: EnergyModel, charging: ChargingModel) -> None:
     trip_contexts.pop(trip_id, None)
-    trip_contexts[trip_id] = (graph, cfg)
+    trip_contexts[trip_id] = (graph, cfg, energy, charging)
     while len(trip_contexts) > TRIP_CONTEXT_LIMIT:
         trip_contexts.pop(next(iter(trip_contexts)))
 
 
-def _trip_context(trip_id: str) -> tuple[GraphContext, OptimizerConfig]:
+def _trip_context(trip_id: str) -> tuple[GraphContext, OptimizerConfig, EnergyModel, ChargingModel]:
     context = trip_contexts.get(trip_id)
     if context is None:
         raise HTTPException(status_code=404, detail="This trip is no longer in memory. Plan it again to compare chargers.")
@@ -166,6 +164,20 @@ class TripRequest(BaseModel):
     starting_soc: float = Field(default=100.0, ge=1.0, le=100.0)
     min_charger_soc: float = Field(default=vehicle_cfg.MIN_CHARGER_SOC, ge=0.0, le=50.0)
     destination_soc: float = Field(default=vehicle_cfg.DESTINATION_SOC, ge=0.0, le=50.0)
+    vehicle_profile_id: str = Field(default=vehicle_cfg.DEFAULT_VEHICLE_PROFILE_ID, max_length=80)
+    custom_battery_usable_kwh: float | None = Field(default=None, ge=20.0, le=200.0)
+    custom_highway_wh_per_mile: float | None = Field(default=None, ge=100.0, le=1000.0)
+    custom_peak_charge_kw: float | None = Field(default=None, ge=20.0, le=400.0)
+
+    @model_validator(mode="after")
+    def validate_vehicle(self):
+        vehicle_cfg.planning_profile(
+            self.vehicle_profile_id,
+            self.custom_battery_usable_kwh,
+            self.custom_highway_wh_per_mile,
+            self.custom_peak_charge_kw,
+        )
+        return self
 
 
 class ExplainRequest(BaseModel):
@@ -243,6 +255,9 @@ async def _fill_timezones(candidates: list[Charger]) -> None:
     await asyncio.gather(*(one(c) for c in candidates))
 
 
+USABLE_PRICE_KINDS = {"flat", "time_of_use"}
+
+
 async def _fetch_prices(
     candidates: list[Charger],
     use_charger_cache: bool = True,
@@ -253,11 +268,15 @@ async def _fetch_prices(
 
     async def one(charger: Charger):
         async with semaphore:
-            if use_charger_cache:
-                saved = charger_knowledge.pricing(charger.location_id)
-                if saved is not None:
-                    return charger, saved, "cached"
+            saved = charger_knowledge.pricing(charger.location_id)
+            saved_usable = saved is not None and saved.kind in USABLE_PRICE_KINDS
+            # Only real prices are reused; a saved failure ("unknown") is retried on the next trip.
+            if use_charger_cache and saved_usable:
+                return charger, saved, "cached"
             schedule = await price_provider.get_prices(charger, force_refresh=not use_charger_cache)
+            if schedule.kind not in USABLE_PRICE_KINDS and saved_usable:
+                # A failed refresh must not overwrite a known price.
+                return charger, saved, "cached"
             charger_knowledge.remember_pricing(charger, schedule)
             return charger, schedule, "live"
 
@@ -318,6 +337,11 @@ async def home(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="index.html",
+        context={
+            "vehicle_groups": vehicle_cfg.profile_groups(),
+            "default_vehicle_id": vehicle_cfg.DEFAULT_VEHICLE_PROFILE_ID,
+            "custom_default_peak_kw": vehicle_cfg.CUSTOM_DEFAULT_PEAK_KW,
+        },
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
@@ -351,13 +375,13 @@ async def save_manual_price(location_id: str, req: ManualPriceRequest):
 
 @app.post("/api/trips/{trip_id}/explain")
 async def explain_trip_plan(trip_id: str, req: ExplainRequest) -> dict[str, dict[str, ChargerExplanation]]:
-    graph, cfg = _trip_context(trip_id)
+    graph, cfg, energy, _ = _trip_context(trip_id)
     return {"chargers": explain_plan(graph, req.plan, energy, cfg)}
 
 
 @app.post("/api/trips/{trip_id}/what-if")
 async def what_if_charger(trip_id: str, req: WhatIfRequest):
-    graph, cfg = _trip_context(trip_id)
+    graph, cfg, energy, charging = _trip_context(trip_id)
     plans, _ = optimize_departure(graph, req.plan.departure_time, energy, charging, cfg, required_station_id=req.station_id)
     if not plans:
         return {"feasible": False, "plan": None}
@@ -387,6 +411,14 @@ async def pricing_debug_page(request: Request):
 @app.post("/api/trip", response_model=TripResponse)
 async def trip(req: TripRequest) -> TripResponse:
     try:
+        profile = vehicle_cfg.planning_profile(
+            req.vehicle_profile_id,
+            req.custom_battery_usable_kwh,
+            req.custom_highway_wh_per_mile,
+            req.custom_peak_charge_kw,
+        )
+        energy = EnergyModel(profile.battery_usable_kwh, profile.highway_wh_per_mile)
+        charging = ChargingModel(profile.battery_usable_kwh, profile.charging_curve_kw)
         stop_requests = [] if req.replay_scenario else req.stops
         _publish_progress(req.progress_id, stage="geocoding", message="Resolving origin, stops and destination", chargers=[])
         resolved = await asyncio.gather(
@@ -534,7 +566,7 @@ async def trip(req: TripRequest) -> TripResponse:
                 f"{len(timezone_missing)} time-of-use priced Supercharger(s) were excluded because their local "
                 "timezone could not be resolved. The app will not guess UTC for local Tesla pricing windows."
             )
-        if not usable and energy.reachable(vehicle_cfg.STARTING_SOC, base_route.distance_miles, vehicle_cfg.DESTINATION_SOC) is False:
+        if not usable and energy.reachable(req.starting_soc, base_route.distance_miles, req.destination_soc) is False:
             warnings.append("No priced Superchargers were available for a trip that requires charging, so no cost-optimal plan can be produced without inventing prices.")
 
         _publish_progress(req.progress_id, stage="matrix", message="Checking real driving detours to each usable charger")
@@ -598,7 +630,7 @@ async def trip(req: TripRequest) -> TripResponse:
             min_charger_soc=req.min_charger_soc,
             destination_soc=req.destination_soc,
         )
-        _remember_trip(trip_id, graph, trip_cfg)
+        _remember_trip(trip_id, graph, trip_cfg, energy, charging)
         _publish_progress(req.progress_id, stage="optimizing", message="Comparing charging plans and departure times")
         origin_tz = await timezone_provider.timezone_at(
             origin.coordinate.lat, origin.coordinate.lon
@@ -754,8 +786,12 @@ async def trip(req: TripRequest) -> TripResponse:
             replay_validation=replay_validation,
             warnings=warnings,
             vehicle_assumptions={
-                "battery_usable_kwh": vehicle_cfg.BATTERY_USABLE_KWH,
-                "highway_wh_per_mile": vehicle_cfg.HIGHWAY_WH_PER_MILE,
+                "profile_id": profile.id,
+                "profile_label": profile.display_name,
+                "peak_charge_kw": profile.peak_charge_kw,
+                "battery_usable_kwh": profile.battery_usable_kwh,
+                "highway_wh_per_mile": profile.highway_wh_per_mile,
+                "estimated_highway_range_miles": round(profile.estimated_highway_range_miles, 1),
                 "starting_soc": req.starting_soc,
                 "min_charger_soc": req.min_charger_soc,
                 "destination_soc": req.destination_soc,

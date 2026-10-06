@@ -200,16 +200,19 @@ class SuperchargeInfoProvider:
         if len(candidates) <= max_candidates:
             return candidates
 
-        bins = min(max_candidates, 20)
+        # One slot per equal slice of the route (closest site in each slice) so no stretch of the
+        # route is left without a charger, then fill the remaining slots with the closest sites.
+        # Never truncate by progress: that would drop the end of the route.
+        bins = max_candidates
         selected: dict[str, Charger] = {}
         for b in range(bins):
             lo, hi = b / bins, (b + 1) / bins
-            bucket = [c for c in candidates if lo <= c.route_progress <= hi]
-            for c in sorted(bucket, key=lambda x: x.corridor_distance_miles)[:2]:
-                selected[c.id] = c
-        if len(selected) < max_candidates:
-            for c in sorted(candidates, key=lambda x: x.corridor_distance_miles):
-                selected.setdefault(c.id, c)
-                if len(selected) >= max_candidates:
-                    break
-        return sorted(selected.values(), key=lambda c: c.route_progress)[:max_candidates]
+            bucket = [c for c in candidates if lo <= c.route_progress <= hi and c.id not in selected]
+            if bucket:
+                best = min(bucket, key=lambda x: x.corridor_distance_miles)
+                selected[best.id] = best
+        for c in sorted(candidates, key=lambda x: x.corridor_distance_miles):
+            if len(selected) >= max_candidates:
+                break
+            selected.setdefault(c.id, c)
+        return sorted(selected.values(), key=lambda c: c.route_progress)

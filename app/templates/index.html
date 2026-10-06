@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store, max-age=0">
   <title>TeslaFare · Cost-first Supercharger road trips</title>
-  <link rel="stylesheet" href="/static/style.css?v=20261006-60">
+  <link rel="stylesheet" href="/static/style.css?v=20261006-70">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
 </head>
@@ -66,7 +66,24 @@
         <div class="route-row endpoint"><span class="route-letter dest" id="to-letter">B</span><label>To<input id="to" value="Niagara Falls, NY" required></label></div>
       </div>
       <label>Preferred departure<input id="desired-departure" type="datetime-local"><small>Compares six hours either side</small></label>
+      <label>Vehicle
+        <select id="vehicle-profile">
+          {%- for model, profiles in vehicle_groups %}
+          <optgroup label="{{ model }}">
+            {%- for v in profiles %}
+            <option value="{{ v.id }}" data-kwh="{{ v.battery_usable_kwh }}" data-whmi="{{ v.highway_wh_per_mile }}" data-peak="{{ v.peak_charge_kw | round | int }}" {% if v.id == default_vehicle_id %}selected{% endif %}>{{ v.label }} · {{ v.years }}</option>
+            {%- endfor %}
+          </optgroup>
+          {%- endfor %}
+          <option value="custom">Custom vehicle…</option>
+        </select>
+        <small>Rough estimates; Custom with your own numbers is most accurate</small>
+      </label>
+      <label class="custom-vehicle-field" hidden>Usable battery (kWh)<input id="custom-battery-kwh" type="number" value="75" min="20" max="200" step="0.1"><small>Usable capacity, not gross capacity</small></label>
+      <label class="custom-vehicle-field" hidden>Highway efficiency (Wh/mi)<input id="custom-whmi" type="number" value="260" min="100" max="1000" step="1"><small>Use your observed highway average</small></label>
+      <label class="custom-vehicle-field" hidden>Max charging speed (kW)<input id="custom-peak-kw" type="number" value="{{ custom_default_peak_kw | int }}" min="20" max="400" step="5"><small>Peak Supercharger power your car reaches</small></label>
       <label>Starting battery %<input id="starting-soc" type="number" value="100" min="1" max="100" step="1" required><small>Battery level when you leave</small></label>
+      <div id="vehicle-assumption" class="vehicle-assumption wide" aria-live="polite"></div>
       <label>Fallback $/kWh<input id="fallback-price" type="number" value="0.40" min="0.01" max="2" step="0.01" required><small>Used only when Tesla blocks pricing</small></label>
       <label class="check"><input id="use-charger-cache" type="checkbox" checked><span>Use saved Supercharger data<small>Faster; saved prices may be stale</small></span></label>
       <label>Charger arrival reserve %<input id="min-charger-soc" type="number" value="10" min="0" max="50" step="1" required><small>Minimum battery at every charging stop</small></label>
@@ -106,6 +123,6 @@
     </footer>
   </main>
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script defer src="/static/app.js?v=20261006-60"></script>
+  <script defer src="/static/app.js?v=20261006-70"></script>
 </body>
 </html>

@@ -214,7 +214,9 @@ uv run uvicorn app.main:app --reload
 
 ### Vehicle model
 
-The default vehicle assumptions live in [`app/config/vehicle.py`](app/config/vehicle.py). Update the usable battery capacity, highway efficiency, and approximate charging curve to match the vehicle and conditions you intend to model.
+Choose a built-in Model 3, Y, S, or X planning profile for each trip, or select **Custom vehicle** and enter usable battery capacity and observed highway efficiency. The UI shows the resulting estimated highway range and the response records the exact assumptions used.
+
+The presets in [`app/config/vehicle.py`](app/config/vehicle.py) are conservative planning estimates, not Tesla or EPA range claims. Model year, wheels, speed, temperature, wind, elevation and payload can materially change real consumption; those conditions are not yet modeled.
 
 The charger-arrival reserve, destination reserve, and starting SOC can be changed for each trip in the UI.
 

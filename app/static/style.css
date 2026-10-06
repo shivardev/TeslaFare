@@ -78,14 +78,16 @@ button:disabled { opacity: .5; cursor: wait; }
 .trip-form[hidden] { display: none; }
 .trip-form .wide { grid-column: span 2; }
 .trip-form label { min-width: 0; color: var(--soft); font-size: 12px; font-weight: 600; }
-.trip-form input:not([type=checkbox]) { display: block; width: 100%; height: 42px; margin-top: 7px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: #050506; color: var(--text); font: 500 14px inherit; outline: none; }
-.trip-form input:focus { border-color: var(--red); box-shadow: 0 0 0 3px #e8212722; }
+.trip-form input:not([type=checkbox]), .trip-form select { display: block; width: 100%; height: 42px; margin-top: 7px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: #050506; color: var(--text); font: 500 14px inherit; outline: none; }
+.trip-form input:focus, .trip-form select:focus { border-color: var(--red); box-shadow: 0 0 0 3px #e8212722; }
 .trip-form small { display: block; margin-top: 6px; color: var(--dim); font-size: 11px; font-weight: 400; }
 .trip-form .check { display: flex; gap: 10px; align-items: flex-start; padding-top: 30px; }
 .trip-form .check input { width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--red); }
 .trip-form .check span { color: var(--text); font-weight: 500; }
 .form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .form-actions span { flex: 1; color: var(--muted); font-size: 12px; }
+.vehicle-assumption { align-self: end; min-height: 42px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: #101114; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.vehicle-assumption b { color: var(--text); }
 
 /* Route editor: origin, ordered stops, destination */
 .route-editor { grid-column: 1 / -1; display: grid; gap: 8px; padding-bottom: 6px; }

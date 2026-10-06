@@ -209,6 +209,20 @@ function setupStopsEditor() {
 }
 
 /* Trip summary bar */
+function updateVehicleAssumption() {
+  const select = document.getElementById('vehicle-profile');
+  const custom = select.value === 'custom';
+  document.querySelectorAll('.custom-vehicle-field').forEach(el => { el.hidden = !custom; });
+  const option = select.selectedOptions[0];
+  const kwh = custom ? Number(document.getElementById('custom-battery-kwh').value) : Number(option.dataset.kwh);
+  const whmi = custom ? Number(document.getElementById('custom-whmi').value) : Number(option.dataset.whmi);
+  const peak = custom ? Number(document.getElementById('custom-peak-kw').value) : Number(option.dataset.peak);
+  const range = kwh > 0 && whmi > 0 ? Math.round(kwh * 1000 / whmi) : null;
+  document.getElementById('vehicle-assumption').innerHTML = range
+    ? `<b>Estimated highway range: ${range} mi at 100%</b><br>${kwh} kWh usable · ${whmi} Wh/mi · charges up to ~${peak} kW. Fixed-condition estimate; elevation, weather and speed are not yet modeled.`
+    : 'Enter usable battery capacity and highway efficiency to estimate range.';
+}
+
 function updateSummary(departureIso) {
   document.getElementById('sum-from').textContent = placeText(document.getElementById('from').value) || '—';
   document.getElementById('sum-to').textContent = placeText(document.getElementById('to').value) || '—';
@@ -270,6 +284,7 @@ function renderRecommended(plan) {
   const endSoc = plan.arrival_soc;
   const chargerReserve = Number(lastRequest.min_charger_soc ?? tripData.vehicle_assumptions?.min_charger_soc ?? 10);
   const destinationReserve = Number(lastRequest.destination_soc ?? tripData.vehicle_assumptions?.destination_soc ?? 10);
+  const vehicle = tripData.vehicle_assumptions || {};
   const hasWaypoints = Boolean(plan.waypoints?.length);
   const travel = routeTravelLegs(plan);
   const stops = plan.stops.map((s, index) => {
@@ -320,7 +335,7 @@ function renderRecommended(plan) {
       <span class="dash">${icon('i-chev')}</span>
       ${endSoc == null ? '' : `<div class="end"><b>${Math.round(endSoc)}%</b><span>Arrival</span></div><i class="battery lg" id="rec-end-batt"><i></i></i>`}
     </div>
-    <div class="reserve-rule">${icon('i-info')}<span>This plan keeps at least <b>${chargerReserve}%</b> battery when arriving at chargers and <b>${destinationReserve}%</b> at ${hasWaypoints ? 'each of your stops and ' : ''}your destination. Change these under <button type="button" class="reserve-edit">Edit trip</button>.</span></div>
+    <div class="reserve-rule">${icon('i-info')}<span>Modeled as <b>${esc(vehicle.profile_label || 'selected vehicle')}</b> at ${Math.round(vehicle.highway_wh_per_mile || 0)} Wh/mi (${Math.round(vehicle.estimated_highway_range_miles || 0)} mi estimated highway range). This plan keeps at least <b>${chargerReserve}%</b> at chargers and <b>${destinationReserve}%</b> at ${hasWaypoints ? 'each stop and ' : ''}the destination. Elevation and weather are not yet modeled. <button type="button" class="reserve-edit">Edit trip</button>.</span></div>
     <div class="stop-list">${timeline}${destinationLeg}${plan.stops.length || plan.waypoints?.length ? '' : '<div class="no-stops">No charging stop required for this departure.</div>'}</div>`;
   setBattery(document.getElementById('rec-start-batt'), startSoc);
   if (endSoc != null) setBattery(document.getElementById('rec-end-batt'), endSoc);
@@ -878,6 +893,10 @@ document.getElementById('trip-form').addEventListener('submit', event => {
     starting_soc:Number(document.getElementById('starting-soc').value),
     min_charger_soc:Number(document.getElementById('min-charger-soc').value),
     destination_soc:Number(document.getElementById('destination-soc').value),
+    vehicle_profile_id:document.getElementById('vehicle-profile').value,
+    custom_battery_usable_kwh:document.getElementById('vehicle-profile').value === 'custom' ? Number(document.getElementById('custom-battery-kwh').value) : null,
+    custom_highway_wh_per_mile:document.getElementById('vehicle-profile').value === 'custom' ? Number(document.getElementById('custom-whmi').value) : null,
+    custom_peak_charge_kw:document.getElementById('vehicle-profile').value === 'custom' ? Number(document.getElementById('custom-peak-kw').value) : null,
     use_charger_cache:document.getElementById('use-charger-cache').checked,
     desired_departure_time:document.getElementById('desired-departure').value || null,
     departure_window_hours:12,
@@ -900,9 +919,14 @@ document.getElementById('load-replay').addEventListener('click', event => {
 document.getElementById('edit-trip').addEventListener('click', () => toggleForm());
 document.getElementById('open-settings').addEventListener('click', () => { toggleForm(true); document.getElementById('fallback-price').focus(); });
 document.getElementById('trip-form').addEventListener('input', () => { if (!tripData) updateSummary(); });
+document.getElementById('vehicle-profile').addEventListener('change', updateVehicleAssumption);
+document.getElementById('custom-battery-kwh').addEventListener('input', updateVehicleAssumption);
+document.getElementById('custom-whmi').addEventListener('input', updateVehicleAssumption);
+document.getElementById('custom-peak-kw').addEventListener('input', updateVehicleAssumption);
 
 const defaultDeparture = new Date(Date.now() + 60 * 60 * 1000);
 defaultDeparture.setMinutes(Math.ceil(defaultDeparture.getMinutes() / 30) * 30, 0, 0);
 document.getElementById('desired-departure').value = new Date(defaultDeparture.getTime() - defaultDeparture.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+updateVehicleAssumption();
 setupStopsEditor();
 renderStopsEditor();

@@ -137,4 +137,4 @@ class TripResponse(BaseModel):
     departure_options: list[TripPlan] = Field(default_factory=list)
     replay_validation: dict | None = None
     warnings: list[str] = Field(default_factory=list)
-    vehicle_assumptions: dict[str, float]
+    vehicle_assumptions: dict[str, float | str]

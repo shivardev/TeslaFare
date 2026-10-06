@@ -46,3 +46,56 @@ def test_trip_request_accepts_user_reserve_preferences():
     assert request.destination_soc == 15
     with pytest.raises(ValidationError):
         TripRequest(from_location="Nashville", to_location="Streetsboro", min_charger_soc=51)
+
+
+def test_trip_request_accepts_vehicle_preset_and_custom_profile():
+    preset = TripRequest(from_location="Nashville", to_location="Streetsboro", vehicle_profile_id="model_3_rwd")
+    assert preset.vehicle_profile_id == "model_3_rwd"
+
+    custom = TripRequest(
+        from_location="Nashville",
+        to_location="Streetsboro",
+        vehicle_profile_id="custom",
+        custom_battery_usable_kwh=82,
+        custom_highway_wh_per_mile=285,
+    )
+    assert custom.custom_battery_usable_kwh == 82
+
+    with pytest.raises(ValidationError):
+        TripRequest(from_location="Nashville", to_location="Streetsboro", vehicle_profile_id="custom")
+    with pytest.raises(ValidationError):
+        TripRequest(from_location="Nashville", to_location="Streetsboro", vehicle_profile_id="roadster")
+
+
+def test_vehicle_presets_have_their_own_charging_curves_and_old_ids_still_work():
+    from app.config import vehicle as v
+    lfp = v.planning_profile("model_3_rwd_2024")
+    lr = v.planning_profile("model_y_lr_2025")
+    sx = v.planning_profile("model_x_lr")
+    assert lfp.peak_charge_kw < 200 < lr.peak_charge_kw
+    assert sx.peak_charge_kw >= 200
+    # Profile ids used before model years were added map to a current preset.
+    assert v.planning_profile("model_y_long_range").id == "model_y_lr_2025"
+    assert v.planning_profile("model_3_rwd").id == "model_3_rwd_2024"
+    assert lr.display_name == "Model Y Long Range (2025+)"
+
+
+def test_custom_vehicle_peak_power_scales_the_curve():
+    from app.config import vehicle as v
+    slow = v.planning_profile("custom", 60, 250, custom_peak_kw=120)
+    default = v.planning_profile("custom", 60, 250)
+    assert slow.peak_charge_kw == 120
+    assert default.peak_charge_kw == v.CUSTOM_DEFAULT_PEAK_KW
+    assert [lo for lo, _, _ in slow.charging_curve_kw] == [lo for lo, _, _ in default.charging_curve_kw]
+
+
+def test_model_y_standard_2026_matches_measured_charging():
+    from app.config import vehicle as v
+    from app.vehicle.charging import ChargingModel
+    car = v.planning_profile("model_y_standard_2026")
+    charging = ChargingModel(car.battery_usable_kwh, car.charging_curve_kw)
+    # Real-world test: 10-80% adds 42.4 kWh in about 31 minutes, peaking around 175 kW.
+    assert abs(charging.kwh_between(10, 80) - 42.4) < 1.0
+    assert 27 <= charging.minutes_between(10, 80) <= 33
+    assert car.peak_charge_kw <= 175
+    assert 230 <= car.estimated_highway_range_miles <= 260
