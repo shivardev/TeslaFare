@@ -1,0 +1,53 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.hypothesis/
+.uv-cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test, coverage, and build output
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+playwright-report/
+test-results/
+build/
+dist/
+*.egg-info/
+
+# Local application state
+.data/
+*.sqlite
+*.sqlite3
+*.db
+
+# Secrets and local environment overrides
+.env
+.env.*
+!.env.example
+!.env.example.md
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*~

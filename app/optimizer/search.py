@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from app.models import ChargingStop, TripPlan
+from app.models import ChargingStop, TripPlan, WaypointVisit
 from app.optimizer.graph import GraphContext, TripNode
 from app.pricing.base import charging_cost, price_for_time
 from app.vehicle.charging import ChargingModel
@@ -45,10 +45,28 @@ class _State:
     kwh_purchased: float
     stops: tuple[ChargingStop, ...]
     visited: tuple[int, ...]
+    dwell_minutes: float = 0.0
+    waypoints: tuple[WaypointVisit, ...] = ()
+    required_done: bool = False
 
 
 def _ceil_half(value: float) -> float:
     return math.ceil(value * 2.0 - 1e-9) / 2.0
+
+
+def _arrival_reserve(node: TripNode, cfg: OptimizerConfig) -> float:
+    return cfg.min_charger_soc if node.kind == "charger" else cfg.destination_soc
+
+
+def _can_drive(node: TripNode, nxt: TripNode) -> bool:
+    """Fixed stop order: from any node the car may only reach nodes on the leg it is driving,
+    moving forward, and every leg must end at its own stop (no skipping, no reordering)."""
+    if nxt.kind == "origin" or nxt.leg != node.departing_leg:
+        return False
+    if nxt.kind in {"waypoint", "destination"}:
+        return True
+    # Keep the search moving toward the leg end; tiny tolerance handles clustered sites.
+    return nxt.progress > node.progress + 0.002
 
 
 def _charge_targets(
@@ -73,8 +91,7 @@ def _charge_targets(
         distance = graph.distances_miles[state.node_idx][j]
         if distance is None:
             continue
-        reserve = cfg.destination_soc if nxt.kind == "destination" else cfg.min_charger_soc
-        required = energy.soc_points(distance) + reserve
+        required = energy.soc_points(distance) + _arrival_reserve(nxt, cfg)
         if required <= cfg.absolute_max_charge_soc + 1e-9 and required > state.soc:
             targets.add(_ceil_half(required))
 
@@ -94,7 +111,34 @@ def optimize_departure(
     energy: EnergyModel,
     charging: ChargingModel,
     cfg: OptimizerConfig,
+    required_station_id: str | None = None,
 ) -> tuple[list[TripPlan], int]:
+    """Cheapest plans for one departure. With `required_station_id`, only plans that charge at
+    that station are returned (used for "what if I charge here?" comparisons)."""
+    required_nodes = {
+        i for i, n in enumerate(graph.nodes) if required_station_id and n.kind == "charger" and n.id == required_station_id
+    }
+    if required_station_id and not required_nodes:
+        return [], 0
+    # Past this point on the route the required station can no longer be visited.
+    required_last_progress = max((graph.nodes[i].progress for i in required_nodes), default=0.0)
+    known_prices = [
+        band.price_per_kwh
+        for node in graph.nodes
+        if node.pricing is not None
+        for band in node.pricing.bands
+    ]
+    min_network_price = min(known_prices, default=0.0)
+
+    def remaining_cost_floor(node_idx: int, soc: float) -> float:
+        """Admissible A* floor based on direct road energy at the cheapest rate."""
+        remaining_miles = graph.distances_miles[node_idx][graph.destination_index]
+        if remaining_miles is None:
+            return 0.0
+        needed_soc = energy.soc_points(remaining_miles) + cfg.destination_soc
+        missing_soc = max(0.0, needed_soc - soc)
+        return missing_soc / 100.0 * energy.battery_usable_kwh * min_network_price
+
     initial = _State(
         node_idx=0,
         soc=cfg.starting_soc,
@@ -110,7 +154,7 @@ def optimize_departure(
     seq = itertools.count()
     heap: list[_QueueItem] = [_QueueItem(0.0, next(seq), initial)]
     # Keep a few labels per bucket to preserve useful route/time alternatives.
-    labels: dict[tuple[int, int, int], list[tuple[float, float]]] = {}
+    labels: dict[tuple[int, int, int, bool], list[tuple[float, float]]] = {}
     destination_states: list[_State] = []
     destination_signatures: set[tuple[str, ...]] = set()
     evaluated = 0
@@ -125,6 +169,8 @@ def optimize_departure(
         node = graph.nodes[state.node_idx]
 
         if state.node_idx == graph.destination_index:
+            if required_nodes and not state.required_done:
+                continue
             sig = tuple(stop.station_id for stop in state.stops)
             if sig not in destination_signatures:
                 destination_signatures.add(sig)
@@ -140,6 +186,7 @@ def optimize_departure(
             kwh = 0.0
             new_stops = state.stops
             depart_time = state.timestamp
+            required_done = state.required_done
 
             if target_soc > state.soc + 0.05:
                 if node.kind != "charger" or node.pricing is None:
@@ -160,6 +207,7 @@ def optimize_departure(
                         arrival_time=state.timestamp,
                         arrival_soc=round(state.soc, 1),
                         price_per_kwh=round(price, 4),
+                        price_is_estimate=node.pricing.kind == "estimate",
                         kwh_purchased=round(kwh, 2),
                         departure_soc=round(target_soc, 1),
                         charging_minutes=round(charge_minutes, 1),
@@ -167,20 +215,20 @@ def optimize_departure(
                         coordinate=node.coordinate,
                     ),
                 )
+                required_done = required_done or state.node_idx in required_nodes
 
             for nxt_idx, nxt in enumerate(graph.nodes):
                 if nxt_idx == state.node_idx or nxt_idx in state.visited:
                     continue
-                # Keep the search moving toward the destination; tiny tolerance handles clustered sites.
-                if nxt.kind != "destination" and nxt.progress <= node.progress + 0.002:
+                if not _can_drive(node, nxt):
                     continue
-                if nxt.kind == "destination" and node.progress > 1.001:
+                if required_nodes and not required_done and nxt.progress > required_last_progress + 1e-9:
                     continue
                 distance = graph.distances_miles[state.node_idx][nxt_idx]
                 duration = graph.durations_minutes[state.node_idx][nxt_idx]
                 if distance is None or duration is None:
                     continue
-                reserve = cfg.destination_soc if nxt.kind == "destination" else cfg.min_charger_soc
+                reserve = _arrival_reserve(nxt, cfg)
                 consumed_soc = energy.soc_points(distance)
                 arrival_soc = target_soc - consumed_soc
                 if arrival_soc < reserve - 1e-6:
@@ -192,10 +240,25 @@ def optimize_departure(
                     continue
 
                 arrival_time = depart_time + timedelta(minutes=duration)
+                dwell = 0.0
+                new_waypoints = state.waypoints
+                if nxt.kind == "waypoint":
+                    dwell = nxt.dwell_minutes
+                    new_waypoints = state.waypoints + (
+                        WaypointVisit(
+                            index=nxt.waypoint_index or 0,
+                            name=nxt.name,
+                            coordinate=nxt.coordinate,
+                            arrival_time=arrival_time,
+                            arrival_soc=round(arrival_soc, 1),
+                            dwell_minutes=dwell,
+                            departure_time=arrival_time + timedelta(minutes=dwell),
+                        ),
+                    )
                 nxt_state = _State(
                     node_idx=nxt_idx,
                     soc=arrival_soc,
-                    timestamp=arrival_time,
+                    timestamp=arrival_time + timedelta(minutes=dwell),
                     cost=state.cost + extra_cost,
                     driving_minutes=new_drive,
                     charging_minutes=state.charging_minutes + charge_minutes,
@@ -203,8 +266,11 @@ def optimize_departure(
                     kwh_purchased=state.kwh_purchased + kwh,
                     stops=new_stops,
                     visited=state.visited + (nxt_idx,),
+                    dwell_minutes=state.dwell_minutes + dwell,
+                    waypoints=new_waypoints,
+                    required_done=required_done,
                 )
-                key = _state_key(nxt_state, departure)
+                key = _state_key(nxt_state, departure) + (required_done,)
                 metric = (round(nxt_state.cost, 5), round(nxt_state.driving_minutes + nxt_state.charging_minutes, 2))
                 bucket = labels.setdefault(key, [])
                 dominated = any(c <= metric[0] + 1e-6 and t <= metric[1] + 0.5 for c, t in bucket)
@@ -214,7 +280,18 @@ def optimize_departure(
                 bucket.sort()
                 del bucket[3:]
                 # Primary objective dollars, tiny time tie-breaker only.
-                priority = nxt_state.cost + (nxt_state.driving_minutes + nxt_state.charging_minutes) * 1e-6
+                if len(graph.nodes) > 12:
+                    # On a long real-world corridor, force the bounded search to
+                    # complete forward-moving route alternatives before expanding
+                    # thousands of partial charge variants. Exact dollars still
+                    # rank the completed plans across stations and departures.
+                    priority = -nxt.progress * 10_000.0 + nxt_state.cost
+                else:
+                    priority = (
+                        nxt_state.cost
+                        + remaining_cost_floor(nxt_idx, arrival_soc)
+                        + (nxt_state.driving_minutes + nxt_state.charging_minutes) * 1e-6
+                    )
                 heapq.heappush(heap, _QueueItem(priority, next(seq), nxt_state))
 
     plans = []
@@ -226,10 +303,14 @@ def optimize_departure(
                 total_miles=round(state.miles, 1),
                 driving_minutes=round(state.driving_minutes, 1),
                 charging_minutes=round(state.charging_minutes, 1),
-                total_minutes=round(state.driving_minutes + state.charging_minutes, 1),
+                dwell_minutes=round(state.dwell_minutes, 1),
+                total_minutes=round(state.driving_minutes + state.charging_minutes + state.dwell_minutes, 1),
                 charging_cost=round(state.cost, 2),
                 kwh_purchased=round(state.kwh_purchased, 2),
+                starting_soc=round(cfg.starting_soc, 1),
+                arrival_soc=round(state.soc, 1),
                 stops=list(state.stops),
+                waypoints=list(state.waypoints),
             )
         )
     plans.sort(key=lambda p: (p.charging_cost, p.total_minutes))

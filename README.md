@@ -1,308 +1,321 @@
-# Tesla Cheap Trip — functional local MVP
+<div align="center">
 
-A local-first personal Tesla road-trip optimizer that searches the **next 24 hours** for low-cost Supercharger plans. The primary objective is **minimum charging dollars**, while configurable detour limits prevent absurd routes.
+# ⚡ TeslaFare
 
-This repo intentionally prioritizes **works > pretty**, **simple > enterprise**, **local > cloud**, and **real/unknown pricing > fabricated pricing**.
+### Find the lowest-cost time and place to charge on a Tesla road trip.
 
-## What is implemented
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Tests](https://img.shields.io/badge/tests-38%20passing-22c55e)](#testing)
+[![Local first](https://img.shields.io/badge/data-local--first-e82127)](#privacy-and-data)
 
-- From/To-only UI; no departure-time or charger selection required.
-- Photon geocoding with SQLite cache.
-- Coordinate → IANA timezone lookup through the free TimeAPI HTTP endpoint, cached in SQLite; no native timezone package/compiler required.
-- OSRM road routing, route geometry, alternative base routes, and road-distance/time matrix with SQLite cache.
-- Supercharge.info open-site discovery and local cache.
-- Route-corridor charger filtering before matrix construction.
-- Tesla public Find Us price retrieval:
-  - normal HTTP first;
-  - visible Tesla-owner flat or time-of-use `$ / kWh` parsing;
-  - optional Firefox/Playwright fallback for dynamically rendered pages;
-  - successful schedules cached in SQLite;
-  - missing/unreliable prices become **PRICE UNKNOWN**, never a made-up fallback price.
-- Pricing debug page at `/debug/prices` with station, Tesla URL, last fetch, schedule, status/error.
-- Configurable one-vehicle energy model.
-- Configurable SOC-band charging-speed model rather than constant peak kW.
-- Graph optimizer with state containing location, SOC, time, dollars, driving time, charging time and purchased kWh.
-- Intelligent charge targets including "enough to reach downstream charger/destination + reserve" and 50/60/70/80/85% boundaries.
-- Can charge more at a cheap station to skip an expensive station.
-- 30-minute departure scan across the next 24 hours.
-- Returns useful categories from evaluated feasible plans: Cheapest, Cheap + Fast, Balanced, Fastest Reasonable, Most Expensive Reasonable.
-- Leaflet map with chosen route and Supercharger stops.
-- Synthetic unit tests for energy, SOC feasibility, pricing, charging time, graph construction, cheap-detour behavior, skip-expensive-station behavior, and departure-time pricing.
+TeslaFare compares departure times, real road distances, battery state, charging curves, and available time-of-use prices to build a practical, cost-aware Supercharger plan.
 
-## Prerequisites
+[Quick start](#quick-start) · [How it works](#how-it-works) · [Configuration](#configuration) · [Deploy](#deploying) · [Contributing](#contributing)
 
-- Python 3.11+
-- [`uv`](https://docs.astral.sh/uv/)
-- Internet access while using the app (Photon, public OSRM demo, Supercharge.info, TimeAPI, Tesla public Find Us, and OSM map tiles are remote public services).
+</div>
 
-The code uses no paid API or cloud service. **Visual Studio / Microsoft C++ Build Tools are not required.** The previous native `timezonefinder` dependency was removed.
+> [!IMPORTANT]
+> This is an independent, unofficial project. It is not affiliated with or endorsed by Tesla. Results are planning estimates—not guaranteed prices, range predictions, or navigation instructions.
 
-## Setup
+## Why this project exists
+
+Tesla's built-in trip planner is excellent at getting a Tesla to its destination with convenient Supercharger stops. [A Better Routeplanner](https://abetterrouteplanner.com/) is excellent at detailed energy modeling and building a feasible EV route. Other tools focus on fewer stops, faster charging, live availability, or simply finding chargers near the road.
+
+But during a long road trip, there is another question that most planners do not treat as the primary objective:
+
+> **What is the cheapest realistic charging plan for this trip?**
+
+Supercharger prices can differ significantly between nearby locations and across time-of-use windows. The nearest charger may not be the cheapest. The fastest route may cost more. A tiny charge at one station may be worthwhile if it makes a much cheaper station reachable. Leaving slightly earlier or later can also change the total.
+
+That is the gap this project is built to explore.
+
+Instead of only finding chargers that make the route possible, it compares **cheap-to-expensive complete plans** using:
+
+- public Tesla Supercharger prices when they can be verified;
+- the price active at the estimated time of charging;
+- road distance and driving time between stations;
+- starting battery, energy use, and the charging curve;
+- minimum battery reserves at chargers and the destination;
+- charging time, detours, and optional intermediate stops.
+
+The current version considers **Tesla Superchargers only**. It is most useful before a road trip, when you can trade a little time or a small detour for lower charging cost and want to understand exactly why a plan was selected.
+
+This is not intended to replace Tesla navigation or ABRP. Use it as the **cost-planning layer** before the drive, then use your preferred navigation tool on the road.
+
+![TeslaFare showing a cost-optimized trip](docs/images/planner-results.png)
+
+The planner still enforces the battery reserves and detour limits you choose. “Cheapest” never means pretending the car can reach an impossible stop.
+
+## Highlights
+
+- **Cost-first route optimization** across multiple departure times and charging strategies.
+- **Ordered intermediate stops** with optional dwell time, useful for pickups, meals, or planned visits.
+- **Time-of-use pricing** evaluated in each station's local timezone.
+- **Editable safety reserves** for charger arrival and final destination arrival.
+- **Transparent recommendations** that explain bridge charges, price decisions, and route constraints.
+- **Per-leg travel times** that distinguish driving, charging, and stop duration.
+- **Interactive route map** showing the route, requested stops, candidate chargers, and selected chargers.
+- **Station controls** for excluding unwanted chargers or entering a clearly labeled manual fallback price.
+- **Local-first caching** with SQLite and a human-readable Supercharger knowledge store.
+- **No paid API required** for the default development setup.
+
+## Product tour
+
+### 1. Describe the trip
+
+Enter an origin and destination, add up to eight ordered stops, choose a preferred departure time, and set the starting battery and reserve levels.
+
+![Trip setup form](docs/images/planner-setup.png)
+
+### 2. Compare complete plans
+
+The planner evaluates departure windows and charger sequences, then presents useful alternatives such as lowest cost, balanced, and fastest reasonable. Every plan includes:
+
+- estimated charging cost and arrival time;
+- SOC before and after each charge;
+- driving time between every stop;
+- charging and waypoint dwell time;
+- active reserve rules;
+- the price used at each charger.
+
+### 3. Understand unusual recommendations
+
+If the route buys a small amount of expensive energy before visiting a cheaper nearby charger, the UI labels it as a **bridge charge** and explains which reserve rule made it necessary. The goal is for a surprising plan to be understandable—not merely mathematically valid.
+
+### 4. Inspect the data
+
+Open **Pricing** in the app, or visit `/debug/prices`, to inspect the most recent public pricing response, timestamp, source URL, and any fetch error for every station.
+
+## Quick start
+
+### Requirements
+
+- Python **3.11 or newer**
+- [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
+- Internet access for geocoding, routing, charger discovery, map tiles, timezone resolution, and public pricing
+
+### Install and run
 
 ```bash
-cd tesla-cheap-trip
+git clone https://github.com/shivardev/TeslaFare.git
+cd TeslaFare
 uv sync
-uv run playwright install firefox
-```
-
-Optional configuration:
-
-```bash
-cp .env.example .env
-```
-
-The app deliberately avoids a settings framework. Environment variables from `.env.example` are supported, but a `.env` file is **not auto-loaded**. Either export variables in your shell or launch through a shell/tool that loads `.env`.
-
-Example on bash/zsh:
-
-```bash
-set -a
-source .env
-set +a
-```
-
-PowerShell example:
-
-```powershell
-$env:CORRIDOR_MILES="50"
-$env:TESLA_PLAYWRIGHT_FALLBACK="true"
-```
-
-## Run
-
-```bash
 uv run uvicorn app.main:app --reload
 ```
 
-Open:
+Then open [http://localhost:8000](http://localhost:8000).
 
-- App: http://localhost:8000
-- Price diagnostics: http://localhost:8000/debug/prices
-- Health: http://localhost:8000/health
+| Page | URL |
+|---|---|
+| Planner | `http://localhost:8000/` |
+| Pricing diagnostics | `http://localhost:8000/debug/prices` |
+| Health check | `http://localhost:8000/health` |
+| OpenAPI schema | `http://localhost:8000/openapi.json` |
 
-Typical workflow:
+> [!TIP]
+> The first search is the slowest because station, route, timezone, and pricing data must be collected. Later searches reuse the local cache.
 
-1. Enter `Chattanooga, TN`.
-2. Enter `Niagara Falls, NY`.
-3. Click **FIND CHEAPEST TRIP**.
-4. The app resolves both places, gets a fastest base route, finds nearby open Superchargers, retrieves any public Tesla pricing it can verify, builds a road-routing graph, and evaluates departure times for the next 24 hours.
+## Demo workflow
 
-## Tests
+Try this route after starting the app:
+
+1. Set **From** to `Chattanooga, TN`.
+2. Set **To** to `Niagara Falls, NY`.
+3. Optionally add a stop and its dwell time.
+4. Confirm the starting battery and the two reserve fields.
+5. Select **Plan trip**.
+6. Compare departure bars, select another plan, and inspect its charger sequence.
+7. Expand **View all stations** to compare route distance, detour, price status, and eligibility.
+
+The included **recent trip replay** provides another quick way to explore the recommendation and validation UI using observed station rates.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Trip + battery rules] --> B[Geocode locations]
+    B --> C[Build road route]
+    C --> D[Find corridor Superchargers]
+    D --> E[Resolve prices + timezones]
+    E --> F[Build SOC/time graph]
+    F --> G[Search departure + charge plans]
+    G --> H[Rank useful alternatives]
+    H --> I[Explain and visualize]
+```
+
+Each search state tracks the current location, timestamp, SOC, purchased energy, charging cost, driving time, charging time, dwell time, miles, and visited stops. At a charger, the optimizer considers both standard charge targets and the exact energy required to reach a useful downstream node while retaining the selected reserve.
+
+```text
+energy used (kWh) = road miles × Wh/mi ÷ 1000
+SOC used (%)      = energy used ÷ usable battery capacity × 100
+```
+
+Completed plans are ranked primarily by charging cost, with time used as a tie-breaker. Detour and total-extra-driving limits prevent absurd money-saving routes.
+
+## Data sources
+
+| Provider | Used for | Notes |
+|---|---|---|
+| [Photon](https://photon.komoot.io/) and US Census | Geocoding | Fallback chain; results cached locally |
+| [OSRM](https://project-osrm.org/) | Road geometry, distance, duration, routing matrix | Public demo by default; self-host for serious traffic |
+| [Supercharge.info](https://supercharge.info/) | Open Supercharger discovery | Not used as the price source |
+| [TimeAPI](https://timeapi.io/) | Coordinate → IANA timezone | Required for correct local time-of-use windows |
+| [Tesla Find Us](https://www.tesla.com/findus) | Public station pricing when available | Unauthenticated public data only |
+| [OpenStreetMap](https://www.openstreetmap.org/) | Map tiles | Displayed through Leaflet |
+
+The pricing pipeline does **not** log in to Tesla, use private vehicle APIs, bypass CAPTCHAs, or invent a price when public data is unavailable.
+
+## Pricing states
+
+| Status | Meaning |
+|---|---|
+| Live / verified | Parsed from a current public Tesla response |
+| Cached / historical | Previously observed public pricing reused locally |
+| Manual | Explicitly entered by the user |
+| Estimated | The configured fallback planning price |
+| Unknown | No reliable price was available; excluded from cost optimization |
+
+Dynamic or future pricing that cannot be known reliably stays unknown. A clear failure is safer than a confident-looking fictional total.
+
+## Configuration
+
+The application reads environment variables directly. A `.env` file is **not automatically loaded**.
+
+```bash
+# Search behavior
+DEPARTURE_SEARCH_HOURS=24
+DEPARTURE_INTERVAL_MINUTES=30
+CORRIDOR_MILES=50
+MAX_CANDIDATE_CHARGERS=24
+MAX_CHARGER_DETOUR_MINUTES=15
+MAX_TOTAL_EXTRA_DRIVING_MINUTES=60
+
+# Pricing browser fallback
+TESLA_PLAYWRIGHT_FALLBACK=true
+TESLA_BROWSER_BACKEND=selenium
+TESLA_PLAYWRIGHT_HEADLESS=true
+TESLA_PLAYWRIGHT_MAX_FALLBACKS=40
+
+# Persistence
+CACHE_DB_PATH=.data/cache.sqlite3
+CHARGER_KNOWLEDGE_PATH=.data/superchargers.json
+```
+
+See [`.env.example.md`](.env.example.md) for the complete list.
+
+On PowerShell:
+
+```powershell
+$env:MAX_CHARGER_DETOUR_MINUTES="20"
+$env:TESLA_PLAYWRIGHT_HEADLESS="true"
+uv run uvicorn app.main:app --reload
+```
+
+### Vehicle model
+
+The default vehicle assumptions live in [`app/config/vehicle.py`](app/config/vehicle.py). Update the usable battery capacity, highway efficiency, and approximate charging curve to match the vehicle and conditions you intend to model.
+
+The charger-arrival reserve, destination reserve, and starting SOC can be changed for each trip in the UI.
+
+## Privacy and data
+
+Route and provider data are stored locally by default:
+
+```text
+.data/cache.sqlite3
+.data/superchargers.json
+```
+
+The repository ignores `.data/`, `.env`, virtual environments, Python caches, and test caches. Delete the two data files to clear locally saved provider results and station knowledge.
+
+Trip inputs are necessarily sent to the configured geocoding and routing providers. If that is inappropriate for your use case, point the provider environment variables at services you control.
+
+## Deploying
+
+A basic single-instance deployment can run:
+
+```bash
+uv sync --frozen
+uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+For a public deployment:
+
+- persist the `.data` directory between releases;
+- run behind HTTPS and a reverse proxy;
+- set `TESLA_PLAYWRIGHT_HEADLESS=true`;
+- install the browser required by the selected pricing backend;
+- respect the usage policies and capacity limits of every upstream provider;
+- self-host OSRM/geocoding for meaningful public traffic;
+- add rate limiting and request-size limits before exposing the optimizer broadly;
+- monitor public pricing fetch failures, since Tesla can change its public response at any time.
+
+This codebase is best suited today to personal use, a trusted small group, or a demonstration deployment. The default public provider endpoints do not provide production SLAs.
+
+## Testing
+
+The test suite is synthetic and does not require external providers:
 
 ```bash
 uv run pytest -q
 ```
 
-The tests are synthetic and do **not** depend on Tesla, Photon, OSRM, or Supercharge.info being online.
+Coverage includes energy math, SOC feasibility, charging curves, time-of-use pricing, geocoding fallback, route graphs, ordered waypoints, bridge-charge explanations, departure selection, charger knowledge, and optimizer behavior.
 
-## Vehicle assumptions — edit these first
-
-The target is a **2026 Tesla Model Y Standard RWD Juniper**, but Tesla does not provide a convenient authoritative usable-battery-kWh figure for every trim/model-year combination. Therefore the MVP does **not** present its battery/efficiency defaults as Tesla specifications.
-
-Edit `app/config/vehicle.py`:
-
-```python
-BATTERY_USABLE_KWH = 75.0       # explicit planning assumption
-HIGHWAY_WH_PER_MILE = 260.0     # explicit planning assumption
-STARTING_SOC = 100.0
-MIN_CHARGER_SOC = 10.0
-DESTINATION_SOC = 10.0
-MAX_PREFERRED_CHARGE_SOC = 85.0
-ABSOLUTE_MAX_CHARGE_SOC = 100.0
-```
-
-The default usable capacity and Wh/mi exist only so the MVP runs immediately. Replace them with values you trust for your own car/conditions. The same applies to the approximate SOC-band charging curve in that file.
-
-## Data sources
-
-### Photon
-
-`https://photon.komoot.io`
-
-Used for one-shot geocoding after the user clicks Search. Results are cached by normalized query.
-
-### OSRM
-
-`https://router.project-osrm.org`
-
-Used for road route geometry, driving distance/time, and the candidate-node routing matrix. Straight-line distance is used only for preliminary corridor filtering, never for final feasibility.
-
-The public OSRM demo is suitable for personal prototyping, not guaranteed production capacity. The `RouteProvider` abstraction makes self-hosting OSRM later straightforward.
-
-### Supercharge.info
-
-`https://supercharge.info/service/supercharge/allSites`
-
-Used for open Supercharger station discovery. The station list is cached locally. Supercharge.info is **not** used as a price source.
-
-### TimeAPI
-
-`https://timeapi.io/api/timezone/coordinate`
-
-Used only to convert charger/origin coordinates into an IANA timezone such as `America/New_York`, which is required to apply Tesla time-of-use windows in the station's local time. Results are cached locally for 180 days by default. If the lookup fails, the app does **not** guess: a time-of-use station without a known local timezone is excluded from cost optimization. Flat-price stations remain usable.
-
-This replaces the earlier `timezonefinder` Python dependency, avoiding a Windows C/C++ compilation requirement. Python's standard `zoneinfo` is used for timezone conversion, with the pure-data `tzdata` package for Windows compatibility.
-
-### Tesla public Find Us
-
-`https://www.tesla.com/findus/location/supercharger/...`
-
-Used as the preferred public price source. The parser looks only for visible Tesla-owner flat or time-of-use per-kWh pricing. If ordinary HTTP does not expose a reliable schedule, the app can use Playwright + Firefox to render the public page.
-
-It does **not** log in, use private authenticated Tesla APIs, defeat CAPTCHAs, or fabricate missing rates.
-
-## How the optimizer works
-
-The graph nodes are:
-
-- origin;
-- priced candidate Superchargers;
-- destination.
-
-A search state tracks:
-
-- current node;
-- SOC;
-- timestamp;
-- charging dollars spent;
-- driving minutes;
-- charging minutes;
-- road miles;
-- purchased kWh;
-- charging stops already used.
-
-For each charger state, the search generates useful departure-SOC choices:
-
-- 50%, 60%, 70%, 80%, 85%;
-- exact-ish SOC required to reach each downstream node plus the configured reserve;
-- >85% only when a downstream reachability requirement needs it.
-
-A drive is feasible only when the calculated arrival SOC retains the required reserve. The energy model uses:
+## Project structure
 
 ```text
-energy_kWh = distance_miles * Wh_per_mile / 1000
-SOC used   = energy_kWh / usable_battery_kWh * 100
+app/
+├── chargers/       # Supercharger discovery and durable station knowledge
+├── config/         # Runtime and vehicle assumptions
+├── db/             # SQLite cache
+├── geocoding/      # Census + Photon fallback chain
+├── optimizer/      # Graph construction, search, and explanations
+├── pricing/        # Price schedules and Tesla public-price retrieval
+├── routing/        # OSRM integration
+├── static/         # Browser JavaScript and CSS
+├── templates/      # Planner and diagnostics pages
+├── vehicle/        # Energy and charging models
+├── main.py         # FastAPI application and orchestration
+└── models.py       # API/domain models
+
+tests/              # Offline unit and behavior tests
+docs/images/        # README screenshots
+design/             # Product design references
 ```
 
-Charging money uses the price schedule that is active when the charging session **starts**. Charging duration uses the configured SOC-band curve.
+## Known limitations
 
-The main queue is ordered by charging dollars with only a tiny time tie-breaker. Search limits then stop money-saving detours from becoming ridiculous:
+- Range estimates do not yet model elevation, temperature, wind, precipitation, HVAC, payload, tire setup, or live traffic.
+- Charging duration is based on a configurable approximate SOC-band curve, not the car's live battery temperature or stall conditions.
+- Public pricing can be incomplete, delayed, dynamic, or changed upstream without notice.
+- The optimizer scans discrete departure intervals and does not yet deliberately wait at a charger for a cheaper price window.
+- The default OSRM service has no live traffic and is not intended as production infrastructure.
+- Estimated costs exclude taxes, parking, idle, congestion, membership, and other fees unless represented in the selected price schedule.
 
-- `MAX_ROUTE_DETOUR_PERCENT`
-- `MAX_CHARGER_DETOUR_MINUTES`
-- `MAX_TOTAL_EXTRA_DRIVING_MINUTES`
+## Contributing
 
-## Pricing behavior and limitations
+Issues and pull requests are welcome.
 
-Tesla pricing is the hardest external dependency.
+1. Fork the repository and create a focused branch.
+2. Run `uv sync`.
+3. Make the change with tests.
+4. Run `uv run pytest -q`.
+5. Describe the user-visible behavior and external-provider assumptions in the pull request.
 
-The app follows these rules:
+Good first contribution areas include weather/elevation adjustments, TeslaMate efficiency history, intentional wait actions for time-of-use pricing, saved trip comparisons, accessibility, and deployment packaging.
 
-1. Fetch the public station page over normal HTTP.
-2. Parse a Tesla-owner flat or time-of-use per-kWh schedule if one is visible.
-3. If necessary and enabled, render that same public page in Firefox with Playwright and parse the visible text.
-4. Cache successful schedules.
-5. Otherwise mark the station **PRICE UNKNOWN** and exclude it from cost optimization.
+## Open-source checklist
 
-This means a real trip can legitimately return "no feasible priced route" if enough required stations hide or omit public prices. That is intentional: the tool would rather fail clearly than lie about the cost.
+Before announcing a public hosted instance, add the license you want contributors and users to follow. A repository without a license is publicly visible but does not grant open-source reuse rights. Also consider adding a security policy and a code of conduct as the community grows.
 
-Tesla can also use live/dynamic utilization-based pricing in some situations. A future price that cannot be known reliably ahead of time should not be treated as a guaranteed rate; such data belongs in an explicit dynamic/unknown state rather than an invented prediction.
+---
 
-## Caching
+<div align="center">
 
-SQLite cache location defaults to:
+Built for drivers who would rather spend electrons intelligently.
 
-```text
-.data/cache.sqlite3
-```
+**[Back to top](#-route-intelligence)**
 
-Current TTLs in code:
-
-- geocoding: 30 days;
-- Supercharge.info list: 24 hours;
-- OSRM route/table: 7 days;
-- successful Tesla pricing: configurable, default 6 hours;
-- coordinate timezone lookups: configurable, default 180 days.
-
-Delete `.data/cache.sqlite3` if you want a completely fresh local cache.
-
-## Project layout
-
-```text
-tesla-cheap-trip/
-├── pyproject.toml
-├── README.md
-├── .env.example
-├── app/
-│   ├── main.py
-│   ├── models.py
-│   ├── timezones.py
-│   ├── config/
-│   │   ├── settings.py
-│   │   └── vehicle.py
-│   ├── db/cache.py
-│   ├── geocoding/photon.py
-│   ├── routing/osrm.py
-│   ├── chargers/supercharge_info.py
-│   ├── pricing/
-│   │   ├── base.py
-│   │   └── tesla.py
-│   ├── vehicle/
-│   │   ├── energy.py
-│   │   └── charging.py
-│   ├── optimizer/
-│   │   ├── graph.py
-│   │   └── search.py
-│   ├── templates/
-│   └── static/
-└── tests/
-```
-
-## Current limitations
-
-- This is a personal MVP, not a Tesla-navigation clone.
-- Energy does not yet model elevation, temperature, wind, traffic speed, HVAC, rain/snow, tire setup, payload, or historical TeslaMate efficiency.
-- The charging curve is an approximation and does not model preconditioning, charger sharing, thermal limits, battery temperature, congestion, or actual stall availability.
-- Public Tesla Find Us pages are an external surface and can change markup at any time.
-- TimeAPI is another free public dependency; cached timezone results reduce repeated calls. If it is unavailable for an uncached TOU station, that station is excluded rather than applying its local price window in the wrong timezone.
-- If a station page exposes no reliable future price, it remains `PRICE UNKNOWN`.
-- The optimizer scans fixed 30-minute departures; it does not add deliberate waiting at a station yet.
-- Road traffic is not modeled because the public OSRM route is not a live-traffic service.
-- Public/demo services have usage limits and no SLA.
-- Leaflet uses online OpenStreetMap tiles; the backend itself has no paid map dependency.
-
-## Good next improvements
-
-Without changing the basic architecture:
-
-1. Add TeslaMate historical Wh/mi as an optional `EnergyModel` implementation.
-2. Add weather/elevation penalties.
-3. Add a `WAIT` action for cases where waiting briefly crosses into a much cheaper TOU window.
-4. Persist trip runs so actual versus planned charging can be compared.
-5. Self-host Photon/OSRM if public demo reliability becomes annoying.
-6. Add a manual, explicitly user-entered price override for a station whose public Tesla page is unknown; keep it visually labeled as manual rather than pretending it came from Tesla.
-
-## Debugging
-
-Server logs intentionally expose the important MVP milestones:
-
-```text
-Origin resolved: ...
-Destination resolved: ...
-Base route: ...
-Candidate chargers: N
-Pricing available: N; unknown: N
-Optimization: departures tested=N states evaluated=N routes found=N
-Best route: $... / ... min / ... stops
-```
-
-For individual price failures, visit `/debug/prices`.
-
-## First-run speed
-
-Version 0.1.2 fixes two first-run stalls from the earlier prototype:
-
-- dense OSRM route geometry is now sampled and indexed once before Supercharger corridor filtering, instead of recomputing the whole route for every U.S. charger;
-- the Playwright fallback budget is enforced inside the browser lock, preventing many slow Tesla page loads from queueing accidentally.
-
-The app now limits the initial corridor to 24 candidates, uses a shorter pricing timeout, resolves station timezones only for time-of-use prices, and prints pricing progress to the terminal. Successful external results are cached in SQLite, so repeated searches should be faster.
+</div>

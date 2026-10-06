@@ -3,35 +3,109 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tesla Cheap Trip</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/static/style.css">
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0">
+  <title>TeslaFare · Cost-first Supercharger road trips</title>
+  <link rel="stylesheet" href="/static/style.css?v=20261006-50">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
 </head>
 <body>
-  <main>
-    <header>
-      <h1>TESLA CHEAP TRIP</h1>
-      <p>Find the lowest-cost Supercharger plan over the next 24 hours.</p>
-    </header>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="tesla-t" viewBox="0 0 24 24"><path fill="currentColor" d="M2 3.4C5.3 2.1 8.6 1.5 12 1.5s6.7.6 10 1.9l-.9 1.9C18 4.1 15 3.6 12 3.6S6 4.1 2.9 5.3Z"/><path fill="currentColor" d="M4.6 6c2-.6 4-.9 6-1L12 22.5 13.4 5c2 .1 4 .4 6 1l-.7 1.4c-1.4-.4-2.8-.6-4.2-.7L12 7.2l-2.5-.5c-1.4.1-2.8.3-4.2.7Z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5M8 14h2M12 14h2M16 14h0"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></g></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="m6 15 6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path stroke="currentColor" stroke-width="1.8" d="M12 11v6M12 7v.5"/></symbol>
+  </svg>
 
-    <form id="trip-form">
-      <label>From<input id="from" value="Chattanooga, TN" required></label>
-      <label>To<input id="to" value="Niagara Falls, NY" required></label>
-      <button type="submit">FIND CHEAPEST TRIP</button>
+  <nav class="topbar">
+    <div class="brand">
+      <svg class="brand-logo"><use href="#tesla-t"/></svg>
+      <div><b>TeslaFare</b><span>Cost-first Supercharger road trips.</span></div>
+    </div>
+    <div class="tabs">
+      <a class="active" href="/">Planner</a>
+      <a href="/debug/prices" target="_blank">Pricing</a>
+      <button id="open-settings" type="button">Settings</button>
+    </div>
+  </nav>
+
+  <main>
+    <section class="trip-bar panel">
+      <div class="trip-field">
+        <svg class="ico muted"><use href="#i-pin"/></svg>
+        <div><span>From</span><b id="sum-from">—</b></div>
+      </div>
+      <div class="trip-via"><svg class="ico arrow"><use href="#i-arrow"/></svg><small id="sum-via"></small></div>
+      <div class="trip-field">
+        <svg class="ico red"><use href="#i-pin"/></svg>
+        <div><span>To</span><b id="sum-to">—</b></div>
+      </div>
+      <div class="trip-field sep">
+        <svg class="ico muted"><use href="#i-cal"/></svg>
+        <div><span>Departure</span><b id="sum-depart">—</b></div>
+      </div>
+      <div class="trip-field sep">
+        <i class="battery" id="sum-battery-icon"><i></i></i>
+        <div><span>Starting battery</span><b id="sum-soc">—</b></div>
+      </div>
+      <button id="edit-trip" class="ghost-btn" type="button"><svg class="ico"><use href="#i-edit"/></svg>Edit trip</button>
+    </section>
+
+    <form id="trip-form" class="panel trip-form">
+      <div class="route-editor">
+        <div class="route-row endpoint"><span class="route-letter origin">A</span><label>From<input id="from" value="Chattanooga, TN" required></label></div>
+        <ol id="stops-list" class="stops-list" aria-label="Stops, visited in this order"></ol>
+        <div class="route-add"><button id="add-stop" class="ghost-btn" type="button">+ Add stop</button><small>Stops are visited in exactly this order. Drag or use the arrows to reorder.</small></div>
+        <div class="route-row endpoint"><span class="route-letter dest" id="to-letter">B</span><label>To<input id="to" value="Niagara Falls, NY" required></label></div>
+      </div>
+      <label>Preferred departure<input id="desired-departure" type="datetime-local"><small>Compares six hours either side</small></label>
+      <label>Starting battery %<input id="starting-soc" type="number" value="100" min="1" max="100" step="1" required><small>Battery level when you leave</small></label>
+      <label>Fallback $/kWh<input id="fallback-price" type="number" value="0.40" min="0.01" max="2" step="0.01" required><small>Used only when Tesla blocks pricing</small></label>
+      <label class="check"><input id="use-charger-cache" type="checkbox" checked><span>Use saved Supercharger data<small>Faster; saved prices may be stale</small></span></label>
+      <label>Charger arrival reserve %<input id="min-charger-soc" type="number" value="10" min="0" max="50" step="1" required><small>Minimum battery at every charging stop</small></label>
+      <label>Destination reserve %<input id="destination-soc" type="number" value="10" min="0" max="50" step="1" required><small>Minimum battery remaining at arrival</small></label>
+      <div class="form-actions">
+        <button id="load-replay" class="ghost-btn" type="button">Load recent trip replay</button>
+        <span id="replay-mode">Uses the observed Oct 2 station rates to test the planner.</span>
+        <button class="primary-btn" type="submit">Plan trip <svg class="ico"><use href="#i-arrow"/></svg></button>
+      </div>
     </form>
 
-    <div id="status"></div>
     <div id="warnings"></div>
-    <section id="best"></section>
-    <div id="map"></div>
-    <section id="plans"></section>
+    <section id="replay-validation"></section>
+
+    <section class="hero-grid">
+      <div class="panel map-panel"><div id="map"><div class="map-empty">Plan a trip to see the route.</div></div></div>
+      <article id="recommended" class="panel recommended">
+        <div class="empty-state">
+          <h2 class="kicker">Recommended departure</h2>
+          <p>Enter a trip and press <b>Plan trip</b>. We compare every departure across the window and pick the cheapest charging plan.</p>
+        </div>
+      </article>
+    </section>
+
+    <section id="progress" class="panel progress-panel" hidden>
+      <div class="progress-heading"><b id="progress-message">Starting…</b><span id="progress-count"></span></div>
+      <div class="bar-track"><span id="progress-bar"></span></div>
+    </section>
+
+    <section id="departures" class="panel timeline-panel" hidden></section>
+    <section id="stations" class="panel stations-panel" hidden></section>
+    <section id="plans" class="plans"></section>
 
     <footer>
-      <a href="/debug/prices" target="_blank">Pricing debug</a>
-      <span>Vehicle values are planning assumptions; edit <code>app/config/vehicle.py</code>.</span>
+      <span id="status"></span>
+      <span>Planning estimates — not guaranteed charging quotes.</span>
     </footer>
   </main>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/static/app.js"></script>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="/static/app.js?v=20261006-50"></script>
 </body>
 </html>

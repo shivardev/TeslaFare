@@ -1,6 +1,68 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pricing debug</title><link rel="stylesheet" href="/static/style.css"></head>
-<body><main><h1>Pricing debug</h1><p><a href="/">← trip optimizer</a></p>
-<table><thead><tr><th>Station</th><th>Status</th><th>Last fetch</th><th>Tesla URL</th><th>Schedule / error</th></tr></thead><tbody>
-{% for row in rows %}<tr><td>{{ row.station_name }}</td><td>{{ row.status }}</td><td>{{ row.fetched_at }}</td><td><a href="{{ row.tesla_url }}" target="_blank">Tesla</a></td><td><pre>{{ row.schedule }}\n{{ row.error or '' }}</pre></td></tr>{% endfor %}
-</tbody></table></main></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0">
+  <title>TeslaFare · Pricing diagnostics</title>
+  <link rel="stylesheet" href="/static/style.css?v=20261006-1">
+</head>
+<body class="debug-page">
+  <main class="debug-shell">
+    <header class="debug-header">
+      <div>
+        <a class="back-link" href="/">← Back to planner</a>
+        <h1>Pricing diagnostics</h1>
+        <p>Latest pricing response recorded for each Supercharger.</p>
+      </div>
+      <span class="debug-count">{{ rows|length }} station{% if rows|length != 1 %}s{% endif %}</span>
+    </header>
+
+    <section class="panel debug-panel" aria-label="Station pricing diagnostics">
+      {% if rows %}
+      <div class="debug-table-wrap">
+        <table class="debug-table">
+          <thead>
+            <tr><th>Station</th><th>Status</th><th>Last fetch</th><th>Source</th><th>Response</th></tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td class="debug-station"><strong>{{ row.station_name }}</strong></td>
+              <td><span class="debug-status {{ row.status|lower }}"><i></i>{{ row.status }}</span></td>
+              <td class="debug-date"><time datetime="{{ row.fetched_at }}">{{ row.fetched_at }}</time></td>
+              <td><a class="source-link" href="{{ row.tesla_url }}" target="_blank" rel="noopener noreferrer">Open Tesla ↗</a></td>
+              <td class="debug-response">
+                {% if row.error %}<div class="debug-error">{{ row.error }}</div>{% endif %}
+                {% if row.schedule %}
+                <details>
+                  <summary>View pricing payload</summary>
+                  <pre>{{ row.schedule }}</pre>
+                </details>
+                {% elif not row.error %}<span class="debug-empty">No response data</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="debug-zero">
+        <strong>No pricing requests yet</strong>
+        <p>Plan a trip first, then return here to inspect station responses.</p>
+        <a class="primary-btn" href="/">Plan a trip</a>
+      </div>
+      {% endif %}
+    </section>
+  </main>
+  <script>
+    for (const time of document.querySelectorAll('.debug-date time')) {
+      const date = new Date(time.dateTime);
+      if (!Number.isNaN(date.valueOf())) {
+        time.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+        time.title = date.toLocaleString();
+      }
+    }
+  </script>
+</body>
+</html>

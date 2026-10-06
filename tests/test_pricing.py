@@ -6,7 +6,7 @@ import pytest
 from app.db.cache import CacheDB
 from app.models import PriceBand, PricingSchedule
 from app.pricing.base import charging_cost, price_for_time
-from app.pricing.tesla import TeslaPriceProvider, parse_tesla_pricing_text
+from app.pricing.tesla import TeslaPriceProvider, parse_tesla_pricing_payload, parse_tesla_pricing_text
 
 
 def test_price_schedule_selection():
@@ -37,17 +37,36 @@ def test_parse_tesla_visible_text():
     assert schedule.bands[2].price_per_kwh == 0.43
 
 
+def test_parse_tesla_charger_details_pricebook():
+    payload = {"data": {"data": {"timeZone": "America/Chicago", "effectivePricebooks": [
+        {"feeType": "CONGESTION", "rateBase": 0.75, "uom": "min", "isTou": False, "vehicleMakeType": "TSLA"},
+        {"feeType": "CHARGING", "rateBase": 0.49, "uom": "kwh", "startTime": "19:00", "endTime": "00:00", "isTou": True, "vehicleMakeType": "TSLA"},
+        {"feeType": "CHARGING", "rateBase": 0.59, "uom": "kwh", "startTime": "09:00", "endTime": "19:00", "isTou": True, "vehicleMakeType": "TSLA"},
+        {"feeType": "CHARGING", "rateBase": 0.45, "uom": "kwh", "startTime": "00:00", "endTime": "09:00", "isTou": True, "vehicleMakeType": "TSLA"},
+        {"feeType": "CHARGING", "rateBase": 0.99, "uom": "kwh", "startTime": "00:00", "endTime": "09:00", "isTou": True, "vehicleMakeType": "NTSLA"},
+    ]}}}
+    schedule = parse_tesla_pricing_payload(payload, "https://www.tesla.com/findus")
+    assert schedule.kind == "time_of_use"
+    assert schedule.timezone == "America/Chicago"
+    assert [(b.start_minute, b.end_minute, b.price_per_kwh) for b in schedule.bands] == [
+        (19 * 60, 0, 0.49), (9 * 60, 19 * 60, 0.59), (0, 9 * 60, 0.45)
+    ]
+
+
 @pytest.mark.asyncio
 async def test_playwright_fallback_disabled_when_subprocess_not_supported(monkeypatch):
-    import playwright.async_api as playwright_async_api
+    import playwright.sync_api as playwright_sync_api
 
-    class BrokenAsyncPlaywright:
-        async def start(self):
+    class BrokenPlaywright:
+        def start(self):
             raise NotImplementedError("subprocess not supported")
 
-    monkeypatch.setattr(playwright_async_api, "async_playwright", lambda: BrokenAsyncPlaywright())
+    monkeypatch.setattr(playwright_sync_api, "sync_playwright", lambda: BrokenPlaywright())
 
-    provider = TeslaPriceProvider(CacheDB(Path(".data/test-cache.sqlite3")), 8, "test-agent", 6, True, 3)
+    provider = TeslaPriceProvider(
+        CacheDB(Path(".data/test-cache.sqlite3")), 8, "test-agent", 6, True, 3,
+        False, "firefox", "playwright"
+    )
 
     with pytest.raises(RuntimeError, match="Playwright fallback unavailable"):
         await provider._browser_text("https://www.tesla.com/findus/location/supercharger/32433")

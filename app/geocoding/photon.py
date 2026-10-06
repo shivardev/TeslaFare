@@ -8,6 +8,12 @@ from app.db.cache import CacheDB
 from app.models import Coordinate, ResolvedLocation
 
 
+class GeocodingNotFound(ValueError):
+    def __init__(self, query: str):
+        super().__init__(f"Could not geocode: {query}")
+        self.query = query
+
+
 class Geocoder(ABC):
     @abstractmethod
     async def geocode(self, query: str) -> ResolvedLocation:
@@ -28,12 +34,18 @@ class PhotonGeocoder(Geocoder):
             return ResolvedLocation.model_validate(cached)
 
         async with httpx.AsyncClient(timeout=self.timeout, headers={"User-Agent": self.user_agent}) as client:
-            response = await client.get(f"{self.base_url}/api/", params={"q": query, "limit": 1})
+            for attempt in range(2):
+                try:
+                    response = await client.get(f"{self.base_url}/api/", params={"q": query, "limit": 1})
+                    break
+                except httpx.TimeoutException:
+                    if attempt:
+                        raise
             response.raise_for_status()
             data = response.json()
         features = data.get("features") or []
         if not features:
-            raise ValueError(f"Could not geocode: {query}")
+            raise GeocodingNotFound(query)
         feature = features[0]
         lon, lat = feature["geometry"]["coordinates"]
         props = feature.get("properties", {})
