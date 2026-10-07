@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -105,11 +106,14 @@ optimizer_cfg = OptimizerConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     refresh_task = None
+    central_task = asyncio.create_task(central_pull_loop()) if settings.central_price_url else None
     if settings.server_price_lookups and settings.price_refresh_per_hour > 0 and settings.tesla_playwright_fallback:
         refresh_task = asyncio.create_task(price_refresher.run())
     yield
     if refresh_task is not None:
         refresh_task.cancel()
+    if central_task is not None:
+        central_task.cancel()
     await price_provider.close()
 
 
@@ -452,21 +456,91 @@ async def skip_pricing(progress_id: str):
     return {"ok": event is not None}
 
 
-def _require_collector_key(key: str | None) -> None:
-    if not settings.collector_key:
+def _collector_keys() -> dict[str, str]:
+    """key -> contributor name. COLLECTOR_KEY is the owner; CONTRIBUTOR_KEYS adds named contributors."""
+    keys = {settings.collector_key: "owner"} if settings.collector_key else {}
+    for entry in settings.contributor_keys.split(","):
+        name, _, key = entry.strip().partition(":")
+        if name and key:
+            keys[key.strip()] = name.strip()
+    return keys
+
+
+def _require_collector_key(key: str | None) -> str:
+    """The contributor name for a valid key; raises otherwise."""
+    keys = _collector_keys()
+    if not keys:
         raise HTTPException(status_code=503, detail="Price collection is off: set COLLECTOR_KEY on the server.")
-    if not key or not hmac.compare_digest(key, settings.collector_key):
-        raise HTTPException(status_code=401, detail="Wrong collector key.")
+    for known, name in keys.items():
+        if key and hmac.compare_digest(key, known):
+            return name
+    raise HTTPException(status_code=401, detail="Wrong collector key.")
 
 
 async def _catalog_by_id() -> dict[str, Charger]:
     return {c.location_id: c for c in await chargers_provider.all_open()}
 
 
+# Stations handed to an open Tesla tab recently, so parallel tabs never get the same station.
+collector_leases: dict[str, float] = {}
+COLLECTOR_LEASE_SECONDS = 180
+collector_paused_until: float = 0.0
+collector_session_saved = 0
+
+
+def _collector_paused() -> datetime | None:
+    if time.time() < collector_paused_until:
+        return datetime.fromtimestamp(collector_paused_until, timezone.utc)
+    return None
+
+
+async def _forward_to_central(req: "CollectedPriceRequest") -> None:
+    """Send a price collected here to the shared database too (only when CENTRAL_CONTRIBUTOR_KEY is set)."""
+    if not (settings.central_price_url and settings.central_contributor_key):
+        return
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.post(
+                settings.central_price_url.rstrip("/") + "/api/collector/price",
+                headers={"X-Collector-Key": settings.central_contributor_key},
+                json=req.model_dump(),
+            )
+        if response.status_code != 200:
+            log.warning("Central price server answered %s: %s", response.status_code, response.text[:200])
+    except Exception as exc:
+        log.warning("Couldn't forward price to the central server: %s", exc)
+
+
+async def pull_central_prices() -> int:
+    """Merge the shared price database into this instance (newer local prices always win)."""
+    if not settings.central_price_url:
+        return 0
+    async with httpx.AsyncClient(timeout=60, headers={"User-Agent": settings.user_agent}) as client:
+        response = await client.get(settings.central_price_url.rstrip("/") + "/api/prices/export")
+        response.raise_for_status()
+        data = response.json()
+    updated = charger_knowledge.import_prices(data.get("prices") or {}, source="central")
+    log.info("Pulled shared prices from %s: %d station(s) updated", settings.central_price_url, updated)
+    return updated
+
+
+async def central_pull_loop() -> None:
+    await asyncio.sleep(15)
+    while True:
+        try:
+            await pull_central_prices()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.warning("Couldn't pull shared prices from %s: %s", settings.central_price_url, exc)
+        await asyncio.sleep(max(1.0, settings.central_pull_hours) * 3600)
+
+
 @app.post("/api/collector/price")
 async def collect_price(req: CollectedPriceRequest, request: Request):
-    """Price data captured by the host's userscript from a Tesla Find Us page they opened."""
-    _require_collector_key(request.headers.get("X-Collector-Key"))
+    """Price data captured by a collector's userscript from a Tesla Find Us page they opened."""
+    global collector_session_saved
+    contributor = _require_collector_key(request.headers.get("X-Collector-Key"))
     station = identify_station(req.page_url, req.request_url, req.payload, await _catalog_by_id())
     if station is None:
         raise HTTPException(status_code=404, detail="Couldn't tell which station this is; open it from the /collect page.")
@@ -474,10 +548,13 @@ async def collect_price(req: CollectedPriceRequest, request: Request):
     if schedule.kind not in USABLE_PRICE_KINDS:
         raise HTTPException(status_code=422, detail=f"No Tesla price found for {station.name} in that data.")
     schedule.fetched_at = datetime.now(timezone.utc)
-    charger_knowledge.remember_pricing(station, schedule)
+    charger_knowledge.remember_pricing(station, schedule, source=f"collector:{contributor}")
+    collector_leases.pop(station.location_id, None)
+    collector_session_saved += 1
+    asyncio.create_task(_forward_to_central(req))
     prices = sorted({band.price_per_kwh for band in schedule.bands})
     summary = f"${prices[0]:.2f}/kWh" if len(prices) == 1 else f"${prices[0]:.2f}\u2013{prices[-1]:.2f}/kWh"
-    log.info("Collected price for %s: %s", station.name, summary)
+    log.info("Collected price for %s from %s: %s", station.name, contributor, summary)
     return {"ok": True, "station_id": station.location_id, "station_name": station.name, "kind": schedule.kind, "summary": summary}
 
 
@@ -485,9 +562,8 @@ def findus_url_for(station: Charger) -> str:
     return station.tesla_url or f"https://www.tesla.com/findus?location={station.location_id}"
 
 
-@app.get("/api/collector/queue")
-async def price_queue(limit: int = 60):
-    items, counts = collection_queue(
+async def _queue_items() -> tuple[list[dict], dict[str, int]]:
+    return collection_queue(
         await chargers_provider.all_open(),
         charger_knowledge.all_pricing(),
         price_refresher.recent_trip_ids(),
@@ -495,12 +571,78 @@ async def price_queue(limit: int = 60):
         timedelta(hours=settings.price_fresh_hours),
         {c.strip() for c in settings.price_refresh_countries.split(",") if c.strip()},
     )
+
+
+@app.get("/api/collector/queue")
+async def price_queue(limit: int = 60):
+    items, counts = await _queue_items()
+    paused = _collector_paused()
     return {
         "items": items[: max(1, min(limit, 200))],
         "counts": counts,
         "fresh_hours": settings.price_fresh_hours,
-        "collector_enabled": bool(settings.collector_key),
+        "collector_enabled": bool(_collector_keys()),
+        "paused_until": paused.isoformat() if paused else None,
     }
+
+
+@app.get("/api/collector/next")
+async def next_stations(request: Request, count: int = 1):
+    """The next stations to open, leased for a few minutes so parallel tabs don't repeat a station."""
+    _require_collector_key(request.headers.get("X-Collector-Key"))
+    paused = _collector_paused()
+    if paused:
+        return {"items": [], "paused_until": paused.isoformat(), "remaining": None, "saved_this_session": collector_session_saved}
+    now = time.time()
+    for station_id, expires in list(collector_leases.items()):
+        if expires < now:
+            collector_leases.pop(station_id, None)
+    items, counts = await _queue_items()
+    picked = [item for item in items if item["station_id"] not in collector_leases][: max(1, min(count, 5))]
+    for item in picked:
+        collector_leases[item["station_id"]] = now + COLLECTOR_LEASE_SECONDS
+    return {
+        "items": picked,
+        "paused_until": None,
+        "remaining": counts["stale"] + counts["missing"],
+        "saved_this_session": collector_session_saved,
+    }
+
+
+class CollectorStationRequest(BaseModel):
+    station_id: str = Field(min_length=1, max_length=120)
+
+
+@app.post("/api/collector/skip")
+async def skip_station(req: CollectorStationRequest, request: Request):
+    """The collector couldn't get a price here; mark it tried so it drops down the queue for a day."""
+    _require_collector_key(request.headers.get("X-Collector-Key"))
+    station = (await _catalog_by_id()).get(req.station_id)
+    if station is None:
+        raise HTTPException(status_code=404, detail="Unknown station.")
+    if charger_knowledge.pricing(station.location_id) is None or charger_knowledge.pricing(station.location_id).kind not in USABLE_PRICE_KINDS:
+        charger_knowledge.remember_pricing(
+            station,
+            PricingSchedule(kind="unknown", note="Skipped by collector", fetched_at=datetime.now(timezone.utc)),
+        )
+    collector_leases.pop(station.location_id, None)
+    return {"ok": True}
+
+
+@app.post("/api/collector/blocked")
+async def collector_blocked(request: Request):
+    """A collector's tab got Tesla's "Access Denied": pause collection instead of pushing through it."""
+    global collector_paused_until
+    _require_collector_key(request.headers.get("X-Collector-Key"))
+    collector_paused_until = time.time() + settings.collector_pause_minutes * 60
+    log.warning("Collector reported Tesla Access Denied; pausing collection for %s minutes", settings.collector_pause_minutes)
+    return {"ok": True, "paused_until": _collector_paused().isoformat()}
+
+
+@app.get("/api/prices/export")
+async def export_prices():
+    """Every collected Tesla price, for other TeslaFare instances to pull."""
+    return charger_knowledge.export_prices()
 
 
 @app.get("/collect", response_class=HTMLResponse)
@@ -509,15 +651,16 @@ async def collect_page(request: Request):
 
 
 @app.get("/collector.user.js", response_class=PlainTextResponse)
-async def collector_userscript(request: Request):
-    server = str(request.base_url).rstrip("/")
-    host = request.url.hostname or "localhost"
+@app.get("/collector/{key}/teslafare.user.js", response_class=PlainTextResponse)
+async def collector_userscript(request: Request, key: str = ""):
+    """The collector userscript for this server. With a valid ?key= it is built in, so the script never asks."""
+    if key:
+        _require_collector_key(key)
+    server = (settings.public_url or str(request.base_url)).rstrip("/")
+    host = httpx.URL(server).host or "localhost"
     script = (BASE_DIR / "static" / "collector.user.js").read_text(encoding="utf-8")
-    return PlainTextResponse(
-        script.replace("__SERVER__", server).replace("__HOST__", host),
-        media_type="text/javascript",
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
+    script = script.replace("__SERVER__", server).replace("__HOST__", host).replace("__KEY__", key.replace("'", ""))
+    return PlainTextResponse(script, media_type="text/javascript", headers={"Cache-Control": "no-store, max-age=0"})
 
 
 @app.post("/api/chargers/{location_id}/manual-price")

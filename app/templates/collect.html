@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TeslaFare · Price collector</title>
-  <link rel="stylesheet" href="/static/style.css?v=20261007-20">
+  <link rel="stylesheet" href="/static/style.css?v=20261007-30">
   <style>
     main { max-width: 1100px; }
     .collect-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
@@ -28,6 +28,11 @@
     .tag.stale { background: #2a1f0a; color: var(--amber); }
     .tag.route { background: #0d2a18; color: #4ade80; }
     .warn-box { padding: 12px 16px; border-left: 3px solid var(--amber); }
+    .actions { display: flex; gap: 10px; align-items: center; }
+    .key-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 0 8px; }
+    .key-row input { width: 280px; height: 34px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: #050506; color: var(--text); font: 13px inherit; }
+    .hint { color: var(--muted); font-size: 12px; }
+    #popup-hint { padding: 10px 14px; border-left: 3px solid var(--blue); font-size: 13px; color: var(--soft); }
     @media (max-width: 760px) { .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   </style>
 </head>
@@ -38,8 +43,13 @@
         <h1>Price collector</h1>
         <p>Open a station on Tesla's site and the TeslaFare userscript saves the price it shows you. Stations on recently planned routes come first. A price stays fresh for <b id="fresh-hours">24</b> hours, then returns to this list.</p>
       </div>
-      <a id="open-next" class="primary-btn" href="#" target="teslafare-collector">Open next station</a>
+      <div class="actions">
+        <button id="open-one" class="ghost-btn" type="button">Open next</button>
+        <button id="open-five" class="primary-btn" type="button">Open next 5</button>
+      </div>
     </div>
+    <div id="paused" class="panel warn-box" hidden></div>
+    <div id="popup-hint" class="panel" hidden>Only one tab opened: your browser blocked the rest. Choose <b>Allow pop-ups</b> for this site in the bar under the address bar (one time), then try again.</div>
     <div id="disabled" class="panel warn-box" hidden>Collection is off on this server. Set <code>COLLECTOR_KEY</code> (any long secret) and restart.</div>
     <div class="stat-row">
       <div class="panel stat fresh"><b id="c-fresh">–</b><span>Fresh prices</span></div>
@@ -47,13 +57,14 @@
       <div class="panel stat missing"><b id="c-missing">–</b><span>No price yet</span></div>
       <div class="panel stat"><b id="c-total">–</b><span>Stations covered</span></div>
     </div>
-    <details class="panel setup">
+    <details class="panel setup" id="setup">
       <summary><b>One-time setup</b></summary>
       <ol>
         <li>Install <b>Tampermonkey</b> or <b>Violentmonkey</b> in the browser you'll collect with.</li>
-        <li>Install the userscript: <a href="/collector.user.js">collector.user.js</a> (your manager offers to install it).</li>
-        <li>Open any station below. The first time, the script asks for your collector key, the <code>COLLECTOR_KEY</code> value on this server.</li>
-        <li>A green "TeslaFare: saved…" note appears on Tesla's page when a price is saved, and the station leaves this list.</li>
+        <li>Enter your collector key (the <code>COLLECTOR_KEY</code> on this server, or the key you were given). It stays in this browser.
+          <div class="key-row"><input id="key" type="password" autocomplete="off" placeholder="Collector key"><span class="hint" id="key-status"></span></div></li>
+        <li>Install the userscript: <a id="install" href="#">install TeslaFare collector</a>. The key is built in, so it never asks for it. Reinstall after changing the key.</li>
+        <li>Click <b>Open next 5</b>. Each Tesla tab saves its price, shows a green note and closes itself. On a single tab, press <b>N</b> for the next station or <b>S</b> to skip one.</li>
       </ol>
     </details>
     <section class="panel queue">
@@ -64,22 +75,68 @@
     </section>
   </main>
   <script>
-    const TAB = 'teslafare-collector';
+    const KEY_STORE = 'teslafare.collectorKey';
     const opened = new Set();
     let items = [];
+    let pausedUntil = null;
     const esc = s => String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     const age = h => h == null ? '—' : h < 48 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`;
-    // Plain links (not window.open) so popup blockers never stop them; they all reuse one named tab.
-    function nextItem() { return items.find(item => !opened.has(item.station_id)) || items[0]; }
-    function markOpened(id) { opened.add(id); setTimeout(render, 0); }
-    function updateNext() {
-      const next = nextItem(), link = document.getElementById('open-next');
-      link.href = next ? next.tesla_url : '#';
-      link.dataset.id = next ? next.station_id : '';
+    const keyInput = document.getElementById('key');
+    function getKey() { try { return localStorage.getItem(KEY_STORE) || ''; } catch (_) { return keyInput.value; } }
+
+    function syncKey() {
+      const key = keyInput.value.trim();
+      try { localStorage.setItem(KEY_STORE, key); } catch (_) { /* private mode */ }
+      const install = document.getElementById('install');
+      // Path ends in .user.js so Tampermonkey/Violentmonkey offer to install it.
+      install.href = key ? `/collector/${encodeURIComponent(key)}/teslafare.user.js` : '#';
+      document.getElementById('key-status').textContent = key ? '' : 'Enter the key first';
+      document.getElementById('setup').open = !key;
     }
+    keyInput.value = getKey();
+    keyInput.addEventListener('input', syncKey);
+    syncKey();
+
+    // Open tab(s) right away inside the click (so pop-up blockers allow them), then point them at stations.
+    async function openStations(count) {
+      const key = getKey();
+      if (!key) { document.getElementById('setup').open = true; keyInput.focus(); return; }
+      const tabs = Array.from({length: count}, (_, i) => window.open('about:blank', count === 1 ? 'teslafare-collector' : `teslafare-batch-${i}`));
+      document.getElementById('popup-hint').hidden = count === 1 || tabs.filter(Boolean).length === count;
+      let data;
+      try {
+        const response = await fetch(`/api/collector/next?count=${count}`, {headers: {'X-Collector-Key': key}, cache: 'no-store'});
+        data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Request failed');
+      } catch (error) {
+        tabs.forEach(tab => tab && tab.close());
+        alert(error.message);
+        return;
+      }
+      if (data.paused_until) { tabs.forEach(tab => tab && tab.close()); pausedUntil = data.paused_until; showPaused(); return; }
+      tabs.forEach((tab, i) => {
+        const item = data.items[i];
+        if (!tab) return;
+        if (!item) { tab.close(); return; }
+        opened.add(item.station_id);
+        // A second apart, so one click doesn't send a burst of page loads to Tesla.
+        setTimeout(() => { tab.location.href = item.tesla_url; }, i * 1000);
+      });
+      render();
+    }
+    document.getElementById('open-one').addEventListener('click', () => openStations(1));
+    document.getElementById('open-five').addEventListener('click', () => openStations(5));
+
+    function showPaused() {
+      const box = document.getElementById('paused');
+      const paused = pausedUntil && new Date(pausedUntil) > new Date();
+      box.hidden = !paused;
+      document.getElementById('open-one').disabled = document.getElementById('open-five').disabled = Boolean(paused);
+      if (paused) box.textContent = `Tesla blocked a page ("Access Denied"), so collection is paused until ${new Date(pausedUntil).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}. Going faster through a block makes it last longer.`;
+    }
+
     function render() {
       const body = document.getElementById('queue-body');
-      updateNext();
       if (!items.length) { body.innerHTML = '<tr><td colspan="5">Every station has a fresh price. 🎉</td></tr>'; return; }
       body.innerHTML = items.map((item, i) => `
         <tr class="${opened.has(item.station_id) ? 'opened' : ''}">
@@ -87,27 +144,25 @@
           <td><b>${esc(item.name)}</b><small style="display:block;color:var(--muted)">${esc(item.address)}</small></td>
           <td>${item.on_recent_route ? '<span class="tag route">On a planned route</span> ' : ''}<span class="tag ${item.status}">${item.status === 'stale' ? 'Old price' : item.status === 'failed' ? 'Last try failed' : 'No price'}</span></td>
           <td>${age(item.age_hours)}</td>
-          <td><a class="ghost-btn" href="${esc(item.tesla_url)}" target="${TAB}" data-id="${esc(item.station_id)}">${opened.has(item.station_id) ? 'Opened · waiting' : 'Open on Tesla'}</a></td>
+          <td><a class="ghost-btn" href="${esc(item.tesla_url)}" target="teslafare-collector" data-id="${esc(item.station_id)}">${opened.has(item.station_id) ? 'Opened · waiting' : 'Open on Tesla'}</a></td>
         </tr>`).join('');
     }
     async function refresh() {
       try {
         const data = await (await fetch('/api/collector/queue?limit=60', {cache: 'no-store'})).json();
         items = data.items;
+        pausedUntil = data.paused_until;
         for (const id of [...opened]) if (!items.some(item => item.station_id === id)) opened.delete(id);
         document.getElementById('fresh-hours').textContent = data.fresh_hours;
         document.getElementById('disabled').hidden = data.collector_enabled;
         for (const k of ['fresh', 'stale', 'missing', 'total']) document.getElementById('c-' + k).textContent = data.counts[k].toLocaleString();
+        showPaused();
         render();
       } catch (_) { /* try again on the next tick */ }
     }
     document.getElementById('queue-body').addEventListener('click', event => {
       const link = event.target.closest('a[data-id]');
-      if (link) markOpened(link.dataset.id);
-    });
-    document.getElementById('open-next').addEventListener('click', event => {
-      if (!event.currentTarget.dataset.id) { event.preventDefault(); return; }
-      markOpened(event.currentTarget.dataset.id);
+      if (link) { opened.add(link.dataset.id); setTimeout(render, 0); }
     });
     refresh();
     setInterval(refresh, 5000);

@@ -60,6 +60,17 @@ class Settings:
     # SERVER_PRICE_LOOKUPS=true (headless Firefox, background refresher).
     server_price_lookups: bool = _bool("SERVER_PRICE_LOOKUPS", False)
     collector_key: str = os.getenv("COLLECTOR_KEY", "")
+    # Extra people allowed to send prices: "alice:key1,bob:key2". Prices record who sent them.
+    contributor_keys: str = os.getenv("CONTRIBUTOR_KEYS", "")
+    # After a collector reports Tesla's "Access Denied", collection pauses this long.
+    collector_pause_minutes: float = float(os.getenv("COLLECTOR_PAUSE_MINUTES", "30"))
+    # Public address of this server (e.g. https://teslaflare.blazingbane.com); used in the userscript.
+    public_url: str = os.getenv("PUBLIC_URL", "")
+    # Shared price database. Every instance pulls it daily; with CENTRAL_CONTRIBUTOR_KEY set, prices
+    # collected here are also forwarded to it. Set CENTRAL_PRICE_URL= (empty) to turn both off.
+    central_price_url: str = os.getenv("CENTRAL_PRICE_URL", "https://teslaflare.blazingbane.com")
+    central_contributor_key: str = os.getenv("CENTRAL_CONTRIBUTOR_KEY", "")
+    central_pull_hours: float = float(os.getenv("CENTRAL_PULL_HOURS", "24"))
     price_fresh_hours: float = float(os.getenv("PRICE_FRESH_HOURS", "24"))
     # Background refresh: stations per hour (0 turns it off), how old a price must be to refresh it,
     # which countries to cover, and how many of the hourly requests are always kept for visitors.

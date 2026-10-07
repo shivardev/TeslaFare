@@ -57,7 +57,7 @@ class ChargerKnowledgeStore:
                 })
             self._write_unlocked(payload)
 
-    def remember_pricing(self, charger: Charger, schedule: PricingSchedule) -> None:
+    def remember_pricing(self, charger: Charger, schedule: PricingSchedule, source: str | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
         with self._lock:
             payload = self._read_unlocked()
@@ -75,6 +75,10 @@ class ChargerKnowledgeStore:
             })
             record["pricing"] = schedule.model_dump(mode="json")
             record["pricing_updated_at"] = now
+            if source:
+                record["pricing_source"] = source
+            else:
+                record.pop("pricing_source", None)
             self._write_unlocked(payload)
 
     def pricing(self, location_id: str) -> PricingSchedule | None:
@@ -103,6 +107,13 @@ class ChargerKnowledgeStore:
 
     def export_price_seed(self, seed_path: Path) -> int:
         """Write every Tesla-sourced price (not failures, manual entries or replay rates) to a small file for git."""
+        data = self.export_prices()
+        seed_path.parent.mkdir(parents=True, exist_ok=True)
+        seed_path.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        return len(data["prices"])
+
+    def export_prices(self) -> dict[str, Any]:
+        """Every Tesla-sourced price, in the seed format (also served to other instances by /api/prices/export)."""
         with self._lock:
             chargers = self._read_unlocked()["chargers"]
         prices = {}
@@ -118,9 +129,7 @@ class ChargerKnowledgeStore:
                 "pricing": pricing,
                 "pricing_updated_at": record.get("pricing_updated_at"),
             }
-        seed_path.parent.mkdir(parents=True, exist_ok=True)
-        seed_path.write_text(json.dumps({"version": 1, "prices": prices}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-        return len(prices)
+        return {"version": 1, "prices": prices}
 
     def import_price_seed(self, seed_path: Path) -> int:
         """Fill in seed prices for stations with no usable local price, or an older one. Returns stations updated."""
@@ -130,18 +139,32 @@ class ChargerKnowledgeStore:
             seed = json.loads(seed_path.read_text(encoding="utf-8")).get("prices") or {}
         except (OSError, ValueError):
             return 0
+        return self.import_prices(seed)
+
+    def import_prices(self, prices: dict[str, Any], source: str | None = None) -> int:
+        """Merge prices in the seed format; a newer local price always wins. Returns stations updated."""
         updated = 0
         with self._lock:
             payload = self._read_unlocked()
             chargers = payload["chargers"]
-            for location_id, entry in seed.items():
+            for location_id, entry in prices.items():
+                if not isinstance(entry, dict) or not isinstance(location_id, str) or len(location_id) > 120:
+                    continue
+                try:
+                    schedule = PricingSchedule.model_validate(entry.get("pricing"))
+                except (TypeError, ValueError):
+                    continue
+                if schedule.kind not in {"flat", "time_of_use"}:
+                    continue
                 record = chargers.setdefault(location_id, {"location_id": location_id, "name": entry.get("name") or location_id})
                 local = record.get("pricing") or {}
                 local_usable = local.get("kind") in {"flat", "time_of_use"}
                 if local_usable and (record.get("pricing_updated_at") or "") >= (entry.get("pricing_updated_at") or ""):
                     continue
-                record["pricing"] = entry["pricing"]
+                record["pricing"] = schedule.model_dump(mode="json")
                 record["pricing_updated_at"] = entry.get("pricing_updated_at")
+                if source:
+                    record["pricing_source"] = source
                 updated += 1
             if updated:
                 self._write_unlocked(payload)

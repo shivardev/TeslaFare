@@ -47,7 +47,7 @@ def collect(monkeypatch, key, payload=PAYLOAD, page="https://www.tesla.com/findu
     async def catalog():
         return {LEX.location_id: LEX}
     monkeypatch.setattr(main, "_catalog_by_id", catalog)
-    monkeypatch.setattr(main.charger_knowledge, "remember_pricing", lambda c, s: saved.setdefault(c.location_id, s))
+    monkeypatch.setattr(main.charger_knowledge, "remember_pricing", lambda c, s, source=None: saved.setdefault(c.location_id, s))
 
     class Req:
         headers = {"X-Collector-Key": key} if key else {}
@@ -72,3 +72,61 @@ def test_collector_rejects_wrong_key_and_bad_data(monkeypatch):
     with pytest.raises(HTTPException) as err:
         collect(monkeypatch, "secret", page="https://www.tesla.com/findus")
     assert err.value.status_code == 404
+
+
+class KeyRequest:
+    def __init__(self, key):
+        self.headers = {"X-Collector-Key": key}
+
+
+def test_contributor_keys_identify_who_sent_a_price(monkeypatch):
+    from dataclasses import replace
+    monkeypatch.setattr(main, "settings", replace(main.settings, collector_key="owner-key", contributor_keys="alice:a-key, bob:b-key"))
+    assert main._require_collector_key("owner-key") == "owner"
+    assert main._require_collector_key("b-key") == "bob"
+    with pytest.raises(HTTPException):
+        main._require_collector_key("nope")
+
+
+def test_parallel_tabs_never_get_the_same_station_and_skip_and_pause(monkeypatch):
+    from dataclasses import replace
+    import time as _time
+    monkeypatch.setattr(main, "settings", replace(main.settings, collector_key="k", collector_pause_minutes=30))
+    monkeypatch.setattr(main, "collector_leases", {})
+    monkeypatch.setattr(main, "collector_paused_until", 0.0)
+    stations = [Charger(id=f"s{i}", location_id=f"s{i}", name=f"S{i}", coordinate=Coordinate(lat=0, lon=0), country="USA") for i in range(8)]
+
+    async def catalog():
+        return stations
+    monkeypatch.setattr(main.chargers_provider, "all_open", catalog)
+    monkeypatch.setattr(main.charger_knowledge, "all_pricing", lambda: {})
+    skipped = {}
+    monkeypatch.setattr(main.charger_knowledge, "pricing", lambda sid: None)
+    monkeypatch.setattr(main.charger_knowledge, "remember_pricing", lambda c, s, source=None: skipped.setdefault(c.location_id, s))
+
+    first = asyncio.run(main.next_stations(KeyRequest("k"), count=5))["items"]
+    second = asyncio.run(main.next_stations(KeyRequest("k"), count=5))["items"]
+    ids = [i["station_id"] for i in first + second]
+    assert len(first) == 5 and len(second) == 3 and len(set(ids)) == 8  # leased stations aren't handed out twice
+
+    asyncio.run(main.skip_station(main.CollectorStationRequest(station_id="s0"), KeyRequest("k")))
+    assert skipped["s0"].kind == "unknown" and "s0" not in main.collector_leases
+
+    asyncio.run(main.collector_blocked(KeyRequest("k")))
+    paused = asyncio.run(main.next_stations(KeyRequest("k"), count=5))
+    assert paused["items"] == [] and paused["paused_until"]
+
+
+def test_price_export_and_central_import_round_trip(tmp_path):
+    from app.chargers.knowledge_store import ChargerKnowledgeStore
+    source = ChargerKnowledgeStore(tmp_path / "a.json")
+    schedule = PricingSchedule(kind="flat", bands=[PriceBand(start_minute=0, end_minute=0, price_per_kwh=0.39)])
+    source.remember_pricing(LEX, schedule, source="collector:owner")
+    exported = source.export_prices()["prices"]
+    assert set(exported) == {"lexingtonkysupercharger"}
+
+    target = ChargerKnowledgeStore(tmp_path / "b.json")
+    junk = {"evil": {"pricing": {"kind": "flat", "bands": "nope"}}, "bad-kind": {"pricing": {"kind": "unknown", "bands": []}}}
+    assert target.import_prices({**exported, **junk}, source="central") == 1  # malformed or unpriced entries are ignored
+    assert target.pricing("lexingtonkysupercharger").bands[0].price_per_kwh == 0.39
+    assert target.pricing("evil") is None
