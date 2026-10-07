@@ -137,3 +137,18 @@ def test_visitor_captured_prices_are_accepted_per_trip_only():
     schedule = main.parse_tesla_pricing_payload(req.captured_prices["lexingtonkysupercharger"], "x")
     assert schedule.kind == "flat" and schedule.bands[0].price_per_kwh == 0.39  # Tesla-vehicle row, not non-Tesla
     assert main.CAPTURED_PRICE_NOTE.startswith("User-entered")  # treated as a visitor price, never "verified"
+
+
+def test_price_status_reports_update_times_and_sees_new_prices(tmp_path, monkeypatch):
+    from app.chargers.knowledge_store import ChargerKnowledgeStore
+    store = ChargerKnowledgeStore(tmp_path / "k.json")
+    monkeypatch.setattr(main, "charger_knowledge", store)
+    flat = PricingSchedule(kind="flat", bands=[PriceBand(start_minute=0, end_minute=0, price_per_kwh=0.39)])
+    store.remember_pricing(LEX, flat)
+    first = asyncio.run(main.price_status("lexingtonkysupercharger,missing"))["prices"]
+    assert list(first) == ["lexingtonkysupercharger"]
+    import time as _t
+    _t.sleep(0.02)
+    store.remember_pricing(LEX, flat)  # re-collected: the cached index must notice the file changed
+    second = asyncio.run(main.price_status("lexingtonkysupercharger"))["prices"]
+    assert second["lexingtonkysupercharger"] != first["lexingtonkysupercharger"]

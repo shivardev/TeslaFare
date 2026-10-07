@@ -91,19 +91,33 @@ class ChargerKnowledgeStore:
         except (TypeError, ValueError):
             return None
 
-    def all_pricing(self) -> dict[str, PricingSchedule]:
-        """Every saved price in one file read (pricing() re-reads the file per station)."""
+    def price_index(self) -> dict[str, tuple[str, PricingSchedule]]:
+        """id -> (pricing_updated_at, schedule) for every saved price. Cached until the file changes,
+        so frequent checks from open planner tabs don't re-parse the whole store."""
+        try:
+            stat = self.path.stat()
+            stamp = (stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            return {}
+        cached = getattr(self, "_price_index_cache", None)
+        if cached and cached[0] == stamp:
+            return cached[1]
         with self._lock:
             chargers = self._read_unlocked()["chargers"]
-        result = {}
+        index = {}
         for location_id, record in chargers.items():
             pricing = record.get("pricing") if isinstance(record, dict) else None
             if isinstance(pricing, dict):
                 try:
-                    result[location_id] = PricingSchedule.model_validate(pricing)
+                    index[location_id] = (str(record.get("pricing_updated_at") or ""), PricingSchedule.model_validate(pricing))
                 except (TypeError, ValueError):
                     pass
-        return result
+        self._price_index_cache = (stamp, index)
+        return index
+
+    def all_pricing(self) -> dict[str, PricingSchedule]:
+        """Every saved price."""
+        return {location_id: schedule for location_id, (_, schedule) in self.price_index().items()}
 
     def export_price_seed(self, seed_path: Path) -> int:
         """Write every Tesla-sourced price (not failures, manual entries or replay rates) to a small file for git."""

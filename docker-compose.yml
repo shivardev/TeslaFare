@@ -10,10 +10,17 @@ services:
     volumes:
       # Saved prices and caches survive restarts and rebuilds.
       - tesla-data:/data
+      # The container's own git clone; updated on every start when AUTO_UPDATE is true.
+      - tesla-code:/src
     # Firefox needs more shared memory than Docker's 64 MB default.
     shm_size: "1gb"
     environment:
       TZ: ${TZ:-America/New_York}
+      # On every start: pull this repo/branch and run the latest code (falls back to the last good copy).
+      AUTO_UPDATE: ${AUTO_UPDATE:-true}
+      REPO_URL: ${REPO_URL:-https://github.com/shivardev/TeslaFare.git}
+      REPO_BRANCH: ${REPO_BRANCH:-main}
+      PUBLIC_URL: ${PUBLIC_URL:-}
       # Prices come from your browser via /collect; set a long random COLLECTOR_KEY to turn it on.
       COLLECTOR_KEY: ${COLLECTOR_KEY:-}
       PRICE_FRESH_HOURS: ${PRICE_FRESH_HOURS:-24}
@@ -34,3 +41,4 @@ services:
 
 volumes:
   tesla-data:
+  tesla-code:

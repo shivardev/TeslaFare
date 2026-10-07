@@ -643,6 +643,18 @@ async def collector_blocked(request: Request):
     return {"ok": True, "paused_until": _collector_paused().isoformat()}
 
 
+@app.get("/api/prices/status")
+async def price_status(ids: str = ""):
+    """When each of these stations' saved Tesla price last changed. Open planner tabs poll this and
+    re-plan when a station on their route gets a new or updated price."""
+    wanted = [i for i in ids.split(",")[:100] if i]
+    index = charger_knowledge.price_index()
+    return {"prices": {
+        i: index[i][0] for i in wanted
+        if i in index and index[i][1].kind in USABLE_PRICE_KINDS
+    }}
+
+
 @app.get("/api/prices/export")
 async def export_prices():
     """Every collected Tesla price, for other TeslaFare instances to pull."""

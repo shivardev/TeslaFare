@@ -55,10 +55,15 @@ function capturedPayload() {
   return Object.fromEntries(Object.entries(capturedPrices()).sort((a, b) => b[1].at - a[1].at).slice(0, 60).map(([id, c]) => [id, c.payload]));
 }
 const findusUrl = id => `https://www.tesla.com/findus?location=${encodeURIComponent(id)}`;
+// A station worth getting a price for: no real price yet, and not ruled out for reasons a price can't fix.
+function worthPricing(c) {
+  return !c.user_excluded && !/detour|timezone/i.test(c.exclusion_reason || '')
+    && (c.pricing_status === 'unknown' || c.pricing_status === 'estimated');
+}
 function missingStations() {
   if (!tripData) return [];
   const mine = myPrices();
-  return tripData.nearby_chargers.filter(c => !c.user_excluded && !mine[c.station_id] && (c.pricing_status === 'unknown' || c.pricing_status === 'estimated'));
+  return tripData.nearby_chargers.filter(c => !mine[c.station_id] && worthPricing(c));
 }
 // The helper (userscript) announces itself and hands over captured prices with window.postMessage.
 window.addEventListener('message', event => {
@@ -85,6 +90,42 @@ window.addEventListener('message', event => {
 });
 window.postMessage({type: 'teslafare-helper-ping'}, location.origin);
 
+// Watch the saved prices of every station in the current trip's list. The first check after a plan
+// records what the server has; any station that later gets a new or updated price triggers a re-plan.
+const PRICE_WATCH_MS = 5000;
+let priceBaseline = null;
+let priceBaselineTrip = null;
+let replanning = false;
+async function checkServerPrices() {
+  if (!tripData || !lastRequest || replanning || document.hidden) return;
+  const ids = tripData.nearby_chargers.filter(c => !c.user_excluded).map(c => c.station_id);
+  if (!ids.length) return;
+  let prices;
+  try {
+    prices = (await (await fetch(`/api/prices/status?ids=${encodeURIComponent(ids.join(','))}`, {cache: 'no-store'})).json()).prices || {};
+  } catch (_) { return; }
+  if (priceBaselineTrip !== tripData || !priceBaseline) {
+    priceBaseline = prices;
+    priceBaselineTrip = tripData;
+    return;
+  }
+  const changed = Object.keys(prices).filter(id => prices[id] !== priceBaseline[id]);
+  if (!changed.length) return;
+  priceBaseline = prices;
+  changed.forEach(id => waitingFor.delete(id));
+  clearTimeout(replanTimer);
+  const names = changed.map(id => shortName(chargerById(id)?.station_name || id)).slice(0, 3).join(', ');
+  renderMissing(`New price for ${names}${changed.length > 3 ? ` +${changed.length - 3} more` : ''}, updating your plan…`);
+  replanTimer = setTimeout(async () => {
+    replanning = true;
+    try { await runTrip({...lastRequest, captured_prices: capturedPayload()}); } finally { replanning = false; }
+  }, 1500);
+}
+function watchServerPrices() { checkServerPrices(); }
+setInterval(checkServerPrices, PRICE_WATCH_MS);
+document.addEventListener('visibilitychange', checkServerPrices);
+window.addEventListener('focus', checkServerPrices);
+
 // Open Tesla tabs for missing stations; with the helper each one captures its price and closes itself.
 function openMissing(ids) {
   const tabs = ids.map((id, i) => window.open('about:blank', `teslafare-plan-${i}`));
@@ -93,6 +134,7 @@ function openMissing(ids) {
     if (!tabs[i]) return;
     waitingFor.add(id);
     setTimeout(() => { tabs[i].location.href = findusUrl(id); }, i * 1000);
+    watchServerPrices();
   });
   renderMissing(blocked ? `Your browser blocked ${blocked} tab(s). Choose "Allow pop-ups" for this site, then click again.` : `Opened ${ids.length - blocked} Tesla tab(s); prices arrive in a few seconds…`);
 }
@@ -134,6 +176,7 @@ function renderMissing(status) {
   document.getElementById('fetch-missing')?.addEventListener('click', () => openMissing(next.map(c => c.station_id)));
 }
 document.getElementById('missing-prices').addEventListener('click', event => {
+  if (event.target.closest('a[href*="tesla.com/findus"]')) { watchServerPrices(); return; }
   const use = event.target.closest('.my-price-btn');
   if (!use) return;
   const input = use.parentElement.querySelector('input');
@@ -838,9 +881,9 @@ function renderStations() {
     const status = c.user_excluded ? 'excluded' : c.pricing_status;
     const now = stop ? stop.price_per_kwh : e?.price_at_pass;
     const mine = myPrices()[c.station_id];
-    const needsPrice = !mine && !c.user_excluded && (c.pricing_status === 'unknown' || c.pricing_status === 'estimated');
+    const needsPrice = !mine && worthPricing(c);
     const manual = needsPrice
-      ? `<div class="my-price">${c.tesla_url ? `<a href="${esc(c.tesla_url)}" target="_blank" rel="noopener">Check on Tesla ↗</a>` : ''}<span><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span></div>`
+      ? `<div class="my-price"><a class="tesla-check" href="${esc(findusUrl(c.station_id))}" target="teslafare-single-${esc(c.station_id)}" rel="opener" data-check="${esc(c.station_id)}" title="${helperVersion ? 'Opens Tesla; the helper grabs the price and updates your plan' : 'Opens the station on Tesla'}">Check on Tesla ↗</a><span><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span></div>`
       : mine ? `<b class="price-now">$${Number(mine.price).toFixed(2)}</b><small>Yours · <button type="button" class="link-btn" data-clear-price="${esc(c.station_id)}">clear</button></small>` : '';
     const priceCell = manual || `<b class="price-now">${now != null ? `$${now.toFixed(2)}` : (priceRange(c.pricing) || '—')}</b><small>${esc(STATUS_LABELS[status] || status)}${now != null && c.pricing?.kind === 'time_of_use' ? ` · ${priceRange(c.pricing)}` : ''}</small>`;
     const open = c.station_id === openStation ? ' open' : '';
@@ -1025,6 +1068,8 @@ async function runTrip(payload) {
     document.getElementById('warnings').innerHTML = data.warnings.map(w => `<div class="warning">${esc(w)}</div>`).join('');
     renderReplayValidation(data.replay_validation);
     renderMissing();
+    priceBaseline = null;
+    checkServerPrices();  // record what the server has right now, so later changes trigger a re-plan
     const best = data.plans[0];
     if (best) {
       toggleForm(false);
@@ -1046,6 +1091,8 @@ async function runTrip(payload) {
 }
 
 document.getElementById('stations').addEventListener('click', event => {
+  const check = event.target.closest('a[data-check]');
+  if (check) { waitingFor.add(check.dataset.check); watchServerPrices(); return; }
   const use = event.target.closest('.my-price-btn');
   const clear = event.target.closest('[data-clear-price]');
   if (!use && !clear) return;
