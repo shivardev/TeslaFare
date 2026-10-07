@@ -34,6 +34,9 @@ from app.optimizer.explain import ChargerExplanation, explain_plan
 from app.optimizer.graph import GraphContext
 from app.optimizer.search import OptimizerConfig, choose_useful_plans, optimize_departure
 from app.pricing.collector import collection_queue, identify_station
+from app.pricing.guards import (
+    CommunityGate, PriceRejected, check_price_bounds, contributor_id, names_other_station, validate_payload_shape,
+)
 from app.pricing.refresher import PriceRefresher
 from app.pricing.tesla import LiveLookupUnavailable, TeslaPriceProvider, parse_tesla_pricing_payload
 from app.routing.osrm import OSRMRouteProvider
@@ -184,6 +187,9 @@ class TripRequest(BaseModel):
     # Tesla get-charger-details data captured by the visitor's browser helper, by station id.
     # Parsed for this trip only and never stored on the server.
     captured_prices: dict[str, dict] = Field(default_factory=dict, max_length=60)
+    # The planner page's price session: the server-side record of this trip's stations and the prices
+    # captured for it. Stays the same across re-plans of the same trip.
+    price_session: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_]{8,64}$")
     fallback_price_per_kwh: float | None = Field(default=0.40, ge=0.01, le=2.0)
     excluded_station_ids: list[str] = Field(default_factory=list, max_length=100)
     use_charger_cache: bool = True
@@ -485,6 +491,37 @@ async def _catalog_by_id() -> dict[str, Charger]:
     return {c.location_id: c for c in await chargers_provider.all_open()}
 
 
+community_gate = CommunityGate(
+    settings.cache_db_path.parent / "price_audit.jsonl",
+    settings.community_per_hour,
+    settings.community_change_threshold,
+)
+
+
+def _checked_schedule(payload: dict, station: Charger, catalog_ids: set[str]) -> PricingSchedule:
+    """Guardrails for every captured price: Tesla's payload shape, the right station, sane bounds."""
+    try:
+        validate_payload_shape(payload)
+        if names_other_station(payload, station.location_id, catalog_ids):
+            raise PriceRejected("That data belongs to a different station")
+        schedule = parse_tesla_pricing_payload(payload, findus_url_for(station))
+        if schedule.kind not in USABLE_PRICE_KINDS:
+            raise PriceRejected(f"No Tesla price found for {station.name} in that data")
+        check_price_bounds(schedule)
+    except PriceRejected as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    schedule.fetched_at = datetime.now(timezone.utc)
+    return schedule
+
+
+def _contributor(request: Request) -> str:
+    ip = request.client.host if request.client else "unknown"
+    if settings.client_ip_header:
+        forwarded = request.headers.get(settings.client_ip_header, "")
+        ip = forwarded.split(",")[0].strip() or ip
+    return contributor_id(ip, settings.collector_key or "teslafare")
+
+
 # Stations handed to an open Tesla tab recently, so parallel tabs never get the same station.
 collector_leases: dict[str, float] = {}
 COLLECTOR_LEASE_SECONDS = 180
@@ -545,21 +582,189 @@ async def collect_price(req: CollectedPriceRequest, request: Request):
     """Price data captured by a collector's userscript from a Tesla Find Us page they opened."""
     global collector_session_saved
     contributor = _require_collector_key(request.headers.get("X-Collector-Key"))
-    station = identify_station(req.page_url, req.request_url, req.payload, await _catalog_by_id())
+    catalog = await _catalog_by_id()
+    station = identify_station(req.page_url, req.request_url, req.payload, catalog)
     if station is None:
         raise HTTPException(status_code=404, detail="Couldn't tell which station this is; open it from the /collect page.")
-    schedule = parse_tesla_pricing_payload(req.payload, findus_url_for(station))
-    if schedule.kind not in USABLE_PRICE_KINDS:
-        raise HTTPException(status_code=422, detail=f"No Tesla price found for {station.name} in that data.")
-    schedule.fetched_at = datetime.now(timezone.utc)
+    schedule = _checked_schedule(req.payload, station, set(catalog))
+    previous = charger_knowledge.pricing_record(station.location_id)
     charger_knowledge.remember_pricing(station, schedule, source=f"collector:{contributor}")
+    community_gate.log({"station_id": station.location_id, "station": station.name, "summary": _price_summary(schedule),
+                        "contributor": contributor, "kind": "key", "outcome": "accepted", "previous": previous})
     collector_leases.pop(station.location_id, None)
     collector_session_saved += 1
     asyncio.create_task(_forward_to_central(req))
-    prices = sorted({band.price_per_kwh for band in schedule.bands})
-    summary = f"${prices[0]:.2f}/kWh" if len(prices) == 1 else f"${prices[0]:.2f}\u2013{prices[-1]:.2f}/kWh"
+    summary = _price_summary(schedule)
     log.info("Collected price for %s from %s: %s", station.name, contributor, summary)
     return {"ok": True, "station_id": station.location_id, "station_name": station.name, "kind": schedule.kind, "summary": summary}
+
+
+def _price_summary(schedule: PricingSchedule) -> str:
+    prices = sorted({band.price_per_kwh for band in schedule.bands})
+    if not prices:
+        return "no price"
+    return f"${prices[0]:.2f}/kWh" if len(prices) == 1 else f"${prices[0]:.2f}\u2013{prices[-1]:.2f}/kWh"
+
+
+# ---------- Price sessions: the one shared state for a planned trip's prices ----------
+# For each planner page: the trip's stations, prices captured in that visitor's browser (never shared
+# with other trips), stations a Tesla tab was just opened for, and stations whose capture failed.
+PRICE_SESSION_LIMIT = 300
+PRICE_SESSION_OPENING_SECONDS = 90
+price_sessions: dict[str, dict] = {}
+
+
+def _price_session(session_id: str, create: bool = False) -> dict | None:
+    session = price_sessions.pop(session_id, None)
+    if session is None:
+        if not create:
+            return None
+        session = {"stations": set(), "captured": {}, "opening": {}, "failed": {}}
+    price_sessions[session_id] = session  # most recently used last
+    while len(price_sessions) > PRICE_SESSION_LIMIT:
+        price_sessions.pop(next(iter(price_sessions)))
+    return session
+
+
+def _session_or_404(session_id: str) -> dict:
+    session = _price_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="This planner session has expired; plan the trip again.")
+    return session
+
+
+@app.get("/api/price-sessions/{session_id}")
+async def price_session_state(session_id: str):
+    """Every station of the trip: priced (saved or captured), opening (a Tesla tab is open for it),
+    failed (no price came back), or missing. The planner draws its panel from this and re-plans
+    when a station's price changes."""
+    session = _session_or_404(session_id)
+    index = charger_knowledge.price_index()
+    now = time.time()
+    stations = {}
+    for station_id in sorted(session["stations"]):
+        captured = session["captured"].get(station_id)
+        saved = index.get(station_id)
+        if captured is not None:
+            stations[station_id] = {"status": "priced", "source": "captured", "updated_at": captured[0], "summary": _price_summary(captured[1])}
+        elif saved is not None and saved[1].kind in USABLE_PRICE_KINDS:
+            stations[station_id] = {"status": "priced", "source": "saved", "updated_at": saved[0], "summary": _price_summary(saved[1])}
+        elif session["opening"].get(station_id, 0) > now:
+            stations[station_id] = {"status": "opening"}
+        elif station_id in session["failed"]:
+            stations[station_id] = {"status": "failed", "reason": session["failed"][station_id]}
+        else:
+            stations[station_id] = {"status": "missing"}
+    return {"stations": stations}
+
+
+class SessionStationsRequest(BaseModel):
+    station_ids: list[str] = Field(max_length=20)
+
+
+@app.post("/api/price-sessions/{session_id}/opening")
+async def price_session_opening(session_id: str, req: SessionStationsRequest):
+    """The planner opened Tesla tabs for these stations. Shown as "opening" for a while; if no price
+    arrives (tab blocked or closed), they go back to missing on their own."""
+    session = _session_or_404(session_id)
+    until = time.time() + PRICE_SESSION_OPENING_SECONDS
+    for station_id in req.station_ids:
+        if station_id in session["stations"]:
+            session["opening"][station_id] = until
+            session["failed"].pop(station_id, None)
+    return {"ok": True}
+
+
+class SessionCaptureRequest(BaseModel):
+    page_url: str = Field(default="", max_length=2000)
+    request_url: str = Field(default="", max_length=4000)
+    payload: dict | None = None
+    station_id: str | None = Field(default=None, max_length=120)
+    failed: str | None = Field(default=None, max_length=200)
+
+
+@app.post("/api/price-sessions/{session_id}/captured")
+async def price_session_captured(session_id: str, req: SessionCaptureRequest, request: Request):
+    """A price the helper captured in this visitor's browser. It is used for this trip right away and,
+    behind the community guardrails, offered to the shared prices. A `failed` reason marks the station as
+    failed instead."""
+    session = _session_or_404(session_id)
+    full_catalog = await _catalog_by_id()
+    catalog = {sid: c for sid, c in full_catalog.items() if sid in session["stations"]}
+    station = catalog.get(req.station_id or "") or identify_station(req.page_url, req.request_url, req.payload or {}, catalog)
+    if station is None:
+        raise HTTPException(status_code=404, detail="That station isn't part of this trip.")
+    session["opening"].pop(station.location_id, None)
+    if req.failed or req.payload is None:
+        session["failed"][station.location_id] = req.failed or "No price came back"
+        return {"ok": False, "station_name": station.name}
+    try:
+        schedule = _checked_schedule(req.payload, station, set(full_catalog))
+    except HTTPException as exc:
+        session["failed"][station.location_id] = exc.detail
+        raise
+    session["failed"].pop(station.location_id, None)
+    session["captured"][station.location_id] = (datetime.now(timezone.utc).isoformat(), schedule)
+    shared = _share_community_price(station, schedule, request)
+    return {"ok": True, "station_name": station.name, "summary": _price_summary(schedule), "shared": shared}
+
+
+def _share_community_price(station: Charger, schedule: PricingSchedule, request: Request) -> str:
+    """Offer a visitor's price to the shared prices. Key holders' helpers save through /api/collector/price,
+    so their requests are skipped here."""
+    key = request.headers.get("X-Collector-Key")
+    if not settings.community_prices or (key and any(hmac.compare_digest(key, k) for k in _collector_keys())):
+        return "skipped"
+    contributor = _contributor(request)
+    saved = charger_knowledge.pricing(station.location_id)
+    saved = saved if saved is not None and saved.kind in USABLE_PRICE_KINDS else None
+    outcome = community_gate.decide(station.location_id, schedule, contributor, saved)
+    previous = charger_knowledge.pricing_record(station.location_id)
+    if outcome == "accepted":
+        charger_knowledge.remember_pricing(station, schedule, source=f"community:{contributor}")
+    community_gate.log({"station_id": station.location_id, "station": station.name, "summary": _price_summary(schedule),
+                        "contributor": contributor, "kind": "community", "outcome": outcome,
+                        "previous": previous if outcome == "accepted" else None})
+    return outcome
+
+
+@app.get("/api/collector/audit")
+async def price_audit(request: Request, limit: int = 200):
+    """Recent price submissions (owner/contributor keys only)."""
+    _require_collector_key(request.headers.get("X-Collector-Key"))
+    return {"entries": community_gate.recent(max(1, min(limit, 1000)))}
+
+
+class RevertRequest(BaseModel):
+    contributor: str = Field(min_length=1, max_length=64)
+
+
+@app.post("/api/collector/revert")
+async def revert_contributor(req: RevertRequest, request: Request):
+    """Undo every price a contributor got accepted, where it is still their price (owner/contributor keys)."""
+    name = _require_collector_key(request.headers.get("X-Collector-Key"))
+    restored = 0
+    for entry in reversed(community_gate.accepted_by(req.contributor)):
+        current = charger_knowledge.pricing_record(entry["station_id"])
+        if current.get("pricing_source") in (f"community:{req.contributor}", f"collector:{req.contributor}"):
+            charger_knowledge.restore_pricing(entry["station_id"], entry.get("previous") or {})
+            restored += 1
+    community_gate.log({"contributor": req.contributor, "kind": "revert", "outcome": f"reverted {restored}", "by": name})
+    return {"ok": True, "restored": restored}
+
+
+def _price_versions(chargers: list[Charger], session: dict | None) -> dict[str, str]:
+    """The same versions /api/price-sessions reports, for the prices this plan used."""
+    index = charger_knowledge.price_index()
+    versions = {}
+    for charger in chargers:
+        captured = session["captured"].get(charger.location_id) if session else None
+        saved = index.get(charger.location_id)
+        if captured is not None:
+            versions[charger.location_id] = captured[0]
+        elif saved is not None and saved[1].kind in USABLE_PRICE_KINDS:
+            versions[charger.location_id] = saved[0]
+    return versions
 
 
 def findus_url_for(station: Charger) -> str:
@@ -802,6 +1007,13 @@ async def trip(req: TripRequest) -> TripResponse:
 
         price_refresher.note_trip_stations([c.location_id for c in candidates])
         pricing = await _fetch_prices(candidates, req.use_charger_cache, req.progress_id)
+        session = _price_session(req.price_session, create=True) if req.price_session else None
+        if session is not None:
+            session["stations"] = {c.location_id for c in discovered_candidates}
+            for charger in candidates:
+                entry = session["captured"].get(charger.location_id)
+                if entry is not None:
+                    pricing[charger.location_id] = entry[1].model_copy(update={"note": CAPTURED_PRICE_NOTE})
         for charger in candidates:
             captured = req.captured_prices.get(charger.location_id)
             if captured:
@@ -1143,6 +1355,7 @@ async def trip(req: TripRequest) -> TripResponse:
             plans=chosen,
             departure_options=departure_options,
             replay_validation=replay_validation,
+            price_versions=_price_versions(discovered_candidates, session),
             warnings=warnings,
             vehicle_assumptions={
                 "profile_id": profile.id,

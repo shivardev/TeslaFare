@@ -67,6 +67,13 @@
         <li>Click <b>Open next 5</b>. Each Tesla tab saves its price, shows a green note and closes itself. On a single tab, press <b>N</b> for the next station or <b>S</b> to skip one.</li>
       </ol>
     </details>
+    <details class="panel setup" id="audit-panel">
+      <summary><b>Recent submissions</b> <span class="hint">(prices sent by you, contributors and visitors)</span></summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th>When</th><th>Station</th><th>Price</th><th>From</th><th>Result</th><th></th></tr></thead>
+        <tbody id="audit-body"><tr><td colspan="6">Enter your collector key above to see submissions.</td></tr></tbody>
+      </table></div>
+    </details>
     <section class="panel queue">
       <div class="table-wrap"><table>
         <thead><tr><th>#</th><th>Station</th><th>Why</th><th>Last price</th><th></th></tr></thead>
@@ -164,8 +171,38 @@
       const link = event.target.closest('a[data-id]');
       if (link) { opened.add(link.dataset.id); setTimeout(render, 0); }
     });
+    async function loadAudit() {
+      const key = getKey(), body = document.getElementById('audit-body');
+      if (!key || !document.getElementById('audit-panel').open) return;
+      try {
+        const response = await fetch('/api/collector/audit?limit=100', {headers: {'X-Collector-Key': key}, cache: 'no-store'});
+        if (!response.ok) { body.innerHTML = '<tr><td colspan="6">Wrong collector key.</td></tr>'; return; }
+        const entries = (await response.json()).entries;
+        body.innerHTML = entries.length ? entries.map(e => `
+          <tr>
+            <td>${esc(new Date(e.at).toLocaleString([], {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}))}</td>
+            <td>${esc(e.station || '—')}</td>
+            <td>${esc(e.summary || '')}</td>
+            <td>${esc(e.kind === 'community' ? 'visitor ' + e.contributor : e.kind === 'revert' ? 'undo' : e.contributor)}</td>
+            <td><span class="tag ${e.outcome === 'accepted' ? 'route' : e.outcome === 'pending' ? 'stale' : 'missing'}">${esc(e.outcome)}</span></td>
+            <td>${e.kind === 'community' && e.outcome === 'accepted' ? `<button class="ghost-btn" type="button" data-revert="${esc(e.contributor)}">Undo all from ${esc(e.contributor)}</button>` : ''}</td>
+          </tr>`).join('') : '<tr><td colspan="6">No submissions yet.</td></tr>';
+      } catch (_) { /* try again later */ }
+    }
+    document.getElementById('audit-panel').addEventListener('toggle', loadAudit);
+    document.getElementById('audit-body').addEventListener('click', async event => {
+      const button = event.target.closest('button[data-revert]');
+      if (!button || !confirm(`Undo every price contributor ${button.dataset.revert} got accepted?`)) return;
+      const response = await fetch('/api/collector/revert', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Collector-Key': getKey()},
+        body: JSON.stringify({contributor: button.dataset.revert})});
+      const data = await response.json();
+      alert(response.ok ? `Restored ${data.restored} price(s).` : (data.detail || 'Undo failed'));
+      loadAudit();
+      refresh();
+    });
     refresh();
     setInterval(refresh, 5000);
+    setInterval(loadAudit, 15000);
   </script>
 </body>
 </html>

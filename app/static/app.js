@@ -37,24 +37,22 @@ function myPricesPayload(prices = myPrices()) {
   // Newest first; the server accepts up to 200.
   return Object.fromEntries(Object.entries(prices).sort((a, b) => b[1].at - a[1].at).slice(0, 200).map(([id, v]) => [id, v.price]));
 }
-// Prices the TeslaFare browser helper captured from Tesla's pages: kept in this browser for 24 h and
-// sent with this visitor's trips only (the server parses them per trip and never stores them).
-const CAPTURED_KEY = 'teslafare.captured';
-const CAPTURE_TTL_MS = 24 * 3600 * 1000;
+// ---------- This trip's prices: one shared state on the server (the "price session") ----------
+// Created for each new trip and kept across its re-plans. The server tracks every station of the trip as
+// priced / opening / failed / missing, and the helper posts captured prices into it. This page only reads it:
+// it draws the missing-prices panel from it and re-plans when a station gets a newer price than the plan used.
 let helperVersion = document.documentElement.getAttribute('data-teslafare-helper');
+let priceSession = null;
+let sessionState = {};
+let planPriceVersions = {};
 let replanTimer = null;
-const waitingFor = new Set();
-function capturedPrices() {
-  try {
-    const now = Date.now();
-    const all = JSON.parse(localStorage.getItem(CAPTURED_KEY) || '{}') || {};
-    return Object.fromEntries(Object.entries(all).filter(([, c]) => now - c.at < CAPTURE_TTL_MS));
-  } catch (_) { return {}; }
-}
-function capturedPayload() {
-  return Object.fromEntries(Object.entries(capturedPrices()).sort((a, b) => b[1].at - a[1].at).slice(0, 60).map(([id, c]) => [id, c.payload]));
-}
+let replanning = false;
+let missingNote = null;  // {text, until}
 const findusUrl = id => `https://www.tesla.com/findus?location=${encodeURIComponent(id)}`;
+const newPriceSession = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+// Tabs named like this are recognised by the helper, which sends their price to this trip's session.
+const teslaTab = key => `teslafare-s-${priceSession}-${key}`;
+
 // A station worth getting a price for: no real price yet, and not ruled out for reasons a price can't fix.
 function worthPricing(c) {
   return !c.user_excluded && !/detour|timezone/i.test(c.exclusion_reason || '')
@@ -63,124 +61,105 @@ function worthPricing(c) {
 function missingStations() {
   if (!tripData) return [];
   const mine = myPrices();
-  return tripData.nearby_chargers.filter(c => !mine[c.station_id] && worthPricing(c));
+  return tripData.nearby_chargers.filter(c => !mine[c.station_id] && worthPricing(c) && sessionState[c.station_id]?.status !== 'priced');
 }
-// The helper (userscript) announces itself and hands over captured prices with window.postMessage.
-window.addEventListener('message', event => {
-  if (event.source !== window || !event.data || event.data.type !== 'teslafare-captures') return;
-  const firstContact = !helperVersion;
-  helperVersion = event.data.helper || helperVersion || 'yes';
-  let stored = {};
-  try { stored = JSON.parse(localStorage.getItem(CAPTURED_KEY) || '{}') || {}; } catch (_) { /* private mode */ }
-  const fresh = [];
-  for (const [id, capture] of Object.entries(event.data.captures || {})) {
-    if (!stored[id] || stored[id].at < capture.at) { stored[id] = capture; fresh.push(id); }
-  }
-  try { localStorage.setItem(CAPTURED_KEY, JSON.stringify(stored)); } catch (_) { /* this page only */ }
-  fresh.forEach(id => waitingFor.delete(id));
-  const missingIds = new Set(missingStations().map(c => c.station_id));
-  if (lastRequest && fresh.some(id => missingIds.has(id))) {
-    // Batch captures from several tabs into one re-plan.
-    clearTimeout(replanTimer);
-    renderMissing(`Got ${fresh.filter(id => missingIds.has(id)).length} new price(s) from Tesla, updating your plan…`);
-    replanTimer = setTimeout(() => runTrip({...lastRequest, captured_prices: capturedPayload()}), 2500);
-  } else if (firstContact && tripData) {
-    renderMissing();
-  }
-});
-window.postMessage({type: 'teslafare-helper-ping'}, location.origin);
+function note(text, seconds = 20) { missingNote = text ? {text, until: Date.now() + seconds * 1000} : null; }
 
-// Watch the saved prices of every station in the current trip's list. The first check after a plan
-// records what the server has; any station that later gets a new or updated price triggers a re-plan.
-const PRICE_WATCH_MS = 5000;
-let priceBaseline = null;
-let priceBaselineTrip = null;
-let replanning = false;
-async function checkServerPrices() {
-  if (!tripData || !lastRequest || replanning || document.hidden) return;
-  const ids = tripData.nearby_chargers.filter(c => !c.user_excluded).map(c => c.station_id);
-  if (!ids.length) return;
-  let prices;
+async function refreshPriceSession() {
+  if (!priceSession || !tripData || document.hidden) return;
   try {
-    prices = (await (await fetch(`/api/prices/status?ids=${encodeURIComponent(ids.join(','))}`, {cache: 'no-store'})).json()).prices || {};
+    const response = await fetch(`/api/price-sessions/${priceSession}`, {cache: 'no-store'});
+    if (!response.ok) return;
+    sessionState = (await response.json()).stations || {};
   } catch (_) { return; }
-  if (priceBaselineTrip !== tripData || !priceBaseline) {
-    priceBaseline = prices;
-    priceBaselineTrip = tripData;
-    return;
+  helperVersion = document.documentElement.getAttribute('data-teslafare-helper') || helperVersion;
+  const newer = Object.entries(sessionState)
+    .filter(([id, st]) => st.status === 'priced' && st.updated_at !== planPriceVersions[id])
+    .map(([id]) => id);
+  if (newer.length && !replanning) {
+    newer.forEach(id => { planPriceVersions[id] = sessionState[id].updated_at; });
+    const names = newer.map(id => shortName(chargerById(id)?.station_name || id)).slice(0, 3).join(', ');
+    note(`New price for ${names}${newer.length > 3 ? ` +${newer.length - 3} more` : ''}, updating your plan…`);
+    clearTimeout(replanTimer);
+    replanTimer = setTimeout(async () => {
+      replanning = true;
+      try { await runTrip({...lastRequest}); } finally { replanning = false; }
+    }, 1500);
   }
-  const changed = Object.keys(prices).filter(id => prices[id] !== priceBaseline[id]);
-  if (!changed.length) return;
-  priceBaseline = prices;
-  changed.forEach(id => waitingFor.delete(id));
-  clearTimeout(replanTimer);
-  const names = changed.map(id => shortName(chargerById(id)?.station_name || id)).slice(0, 3).join(', ');
-  renderMissing(`New price for ${names}${changed.length > 3 ? ` +${changed.length - 3} more` : ''}, updating your plan…`);
-  replanTimer = setTimeout(async () => {
-    replanning = true;
-    try { await runTrip({...lastRequest, captured_prices: capturedPayload()}); } finally { replanning = false; }
-  }, 1500);
+  renderMissing();
 }
-function watchServerPrices() { checkServerPrices(); }
-setInterval(checkServerPrices, PRICE_WATCH_MS);
-document.addEventListener('visibilitychange', checkServerPrices);
-window.addEventListener('focus', checkServerPrices);
+setInterval(refreshPriceSession, 3000);
+document.addEventListener('visibilitychange', refreshPriceSession);
+window.addEventListener('focus', refreshPriceSession);
 
-// Open Tesla tabs for missing stations; with the helper each one captures its price and closes itself.
+function markOpening(ids) {
+  if (!ids.length || !priceSession) return;
+  ids.forEach(id => { sessionState[id] = {status: 'opening'}; });
+  fetch(`/api/price-sessions/${priceSession}/opening`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({station_ids: ids}),
+  }).catch(() => {});
+  renderMissing();
+}
+
+// Open Tesla tabs for missing stations (must run inside the click so pop-up blockers allow it).
 function openMissing(ids) {
-  const tabs = ids.map((id, i) => window.open('about:blank', `teslafare-plan-${i}`));
-  const blocked = tabs.filter(tab => !tab).length;
+  const tabs = ids.map(id => window.open('about:blank', teslaTab(`b${id}`)));
+  const opened = ids.filter((_, i) => tabs[i]);
   ids.forEach((id, i) => {
-    if (!tabs[i]) return;
-    waitingFor.add(id);
-    setTimeout(() => { tabs[i].location.href = findusUrl(id); }, i * 1000);
-    watchServerPrices();
+    if (tabs[i]) setTimeout(() => { tabs[i].location.href = findusUrl(id); }, opened.indexOf(id) * 1000);
   });
-  renderMissing(blocked ? `Your browser blocked ${blocked} tab(s). Choose "Allow pop-ups" for this site, then click again.` : `Opened ${ids.length - blocked} Tesla tab(s); prices arrive in a few seconds…`);
+  const blocked = ids.length - opened.length;
+  note(blocked
+    ? `Your browser blocked ${blocked} tab(s). Click "Options" in the bar at the top and allow pop-ups for this site, then click again.`
+    : `Opened ${opened.length} Tesla tab(s). Prices arrive in a few seconds.`, blocked ? 60 : 20);
+  markOpening(opened);
 }
 
-function renderMissing(status) {
+function renderMissing() {
   const section = document.getElementById('missing-prices');
   const missing = missingStations();
   section.hidden = !missing.length;
   if (!missing.length) { section.innerHTML = ''; return; }
   const estimate = Number(lastRequest?.fallback_price_per_kwh ?? 0.4).toFixed(2);
-  const next = missing.filter(c => !waitingFor.has(c.station_id)).slice(0, 5);
-  // The batch button is always offered: with the helper on Tesla's pages each tab captures its price and
-  // closes, and the planner picks the prices up on its own (helper bridge or server price watch).
-  const batchLabel = next.length === missing.length && next.length <= 5 ? `Open ${next.length === 1 ? 'it' : `all ${next.length}`} on Tesla` : `Open next ${next.length} on Tesla`;
-  const actionsHtml = `<div class="missing-actions">
-       <button id="fetch-missing" class="primary-btn" type="button" ${next.length ? '' : 'disabled'}>${batchLabel}</button>
-       <span class="muted">${helperVersion
-         ? 'Each tab reads the price and closes itself; your plan updates on its own.'
-         : 'With the TeslaFare helper installed, each tab reads the price and closes itself and your plan updates on its own. Without it, the tabs just open so you can check prices.'}</span>
-     </div>`;
-  const helperHtml = actionsHtml + (helperVersion ? '' : `<details class="helper-setup"><summary><b>Get these prices automatically (1-minute setup)</b></summary>
-         <ol>
-           <li>Install <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> for your browser.</li>
-           <li>Install the <a href="/collector.user.js" target="_blank">TeslaFare price helper</a> (Tampermonkey shows an Install button).</li>
-           <li>Reload this page and plan again.</li>
-         </ol>
-         <p class="muted">The helper only reads the price Tesla's site shows you, in your own browser, and passes it to this page. Prices it captures are used for your trips and aren't shared.</p>
-       </details>`);
-  const rows = missing.map(c => `
-    <li>
-      <span><b>${esc(stationName(c.station_name))}</b><small>${esc(cityState(c.address) || '')}${waitingFor.has(c.station_id) ? ' · waiting for Tesla tab…' : ''}</small></span>
-      <a href="${esc(findusUrl(c.station_id))}" target="teslafare-single-${esc(c.station_id)}" rel="opener">Open on Tesla ↗</a>
+  const state = id => sessionState[id]?.status || 'missing';
+  const next = missing.filter(c => state(c.station_id) !== 'opening').slice(0, 5);
+  const label = next.length === missing.length && next.length <= 5 ? `Open ${next.length === 1 ? 'it' : `all ${next.length}`} on Tesla` : `Open next ${next.length} on Tesla`;
+  const statusText = missingNote && missingNote.until > Date.now() ? missingNote.text : '';
+  const rows = missing.map(c => {
+    const st = sessionState[c.station_id] || {};
+    const detail = st.status === 'opening' ? ' · opening on Tesla…' : st.status === 'failed' ? ` · ${st.reason || 'no price came back'}, try again` : '';
+    return `<li>
+      <span><b>${esc(stationName(c.station_name))}</b><small>${esc(cityState(c.address) || '')}${esc(detail)}</small></span>
+      <a href="${esc(findusUrl(c.station_id))}" target="${esc(teslaTab(`x${c.station_id}`))}" data-open-tesla="${esc(c.station_id)}">Open on Tesla ↗</a>
       <span class="my-price-inline"><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span>
-    </li>`).join('');
+    </li>`;
+  }).join('');
   section.innerHTML = `
     <div class="missing-head">
       <div><h2 class="kicker">Prices missing for ${missing.length} station${missing.length === 1 ? '' : 's'}</h2>
       <p>This plan uses your $${estimate}/kWh estimate for them. Get the real price automatically, or open a station on Tesla and type its price.</p></div>
     </div>
-    ${status ? `<div class="missing-status">${esc(status)}</div>` : ''}
-    ${helperHtml}
+    ${statusText ? `<div class="missing-status">${esc(statusText)}</div>` : ''}
+    <div class="missing-actions">
+      <button id="fetch-missing" class="primary-btn" type="button" ${next.length ? '' : 'disabled'}>${next.length ? label : 'Waiting for Tesla tabs…'}</button>
+      <span class="muted">${helperVersion
+        ? 'Each tab reads the price and closes itself; your plan updates on its own.'
+        : 'With the TeslaFare helper installed, each tab reads the price and closes itself and your plan updates on its own. Without it, the tabs just open so you can check prices.'}</span>
+    </div>
+    ${helperVersion ? '' : `<details class="helper-setup"><summary><b>Get these prices automatically (1-minute setup)</b></summary>
+      <ol>
+        <li>Install <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> or Violentmonkey for your browser.</li>
+        <li>Install the <a href="/collector.user.js" target="_blank">TeslaFare price helper</a> (your extension shows an Install button).</li>
+        <li>Reload this page and plan again.</li>
+      </ol>
+      <p class="muted">The helper only reads the price Tesla's site shows you, in your own browser, and sends it to this trip. Prices it captures are used for your trip and aren't shared.</p>
+    </details>`}
     <details class="missing-list" ${missing.length <= 6 ? 'open' : ''}><summary>${missing.length} station${missing.length === 1 ? '' : 's'} without a price</summary><ul>${rows}</ul></details>`;
   document.getElementById('fetch-missing')?.addEventListener('click', () => openMissing(next.map(c => c.station_id)));
 }
 document.getElementById('missing-prices').addEventListener('click', event => {
-  if (event.target.closest('a[href*="tesla.com/findus"]')) { watchServerPrices(); return; }
+  const link = event.target.closest('a[data-open-tesla]');
+  if (link) { markOpening([link.dataset.openTesla]); return; }
   const use = event.target.closest('.my-price-btn');
   if (!use) return;
   const input = use.parentElement.querySelector('input');
@@ -887,7 +866,7 @@ function renderStations() {
     const mine = myPrices()[c.station_id];
     const needsPrice = !mine && worthPricing(c);
     const manual = needsPrice
-      ? `<div class="my-price"><a class="tesla-check" href="${esc(findusUrl(c.station_id))}" target="teslafare-single-${esc(c.station_id)}" rel="opener" data-check="${esc(c.station_id)}" title="${helperVersion ? 'Opens Tesla; the helper grabs the price and updates your plan' : 'Opens the station on Tesla'}">Check on Tesla ↗</a><span><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span></div>`
+      ? `<div class="my-price"><a class="tesla-check" href="${esc(findusUrl(c.station_id))}" target="${esc(teslaTab(`x${c.station_id}`))}" data-check="${esc(c.station_id)}" title="${helperVersion ? 'Opens Tesla; the helper grabs the price and updates your plan' : 'Opens the station on Tesla'}">Check on Tesla ↗</a><span><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span></div>`
       : mine ? `<b class="price-now">$${Number(mine.price).toFixed(2)}</b><small>Yours · <button type="button" class="link-btn" data-clear-price="${esc(c.station_id)}">clear</button></small>` : '';
     const priceCell = manual || `<b class="price-now">${now != null ? `$${now.toFixed(2)}` : (priceRange(c.pricing) || '—')}</b><small>${esc(STATUS_LABELS[status] || status)}${now != null && c.pricing?.kind === 'time_of_use' ? ` · ${priceRange(c.pricing)}` : ''}</small>`;
     const open = c.station_id === openStation ? ' open' : '';
@@ -1071,9 +1050,9 @@ async function runTrip(payload) {
     status.textContent = `Base route ${data.base_route.distance_miles.toFixed(1)} mi · ${data.candidate_chargers} nearby chargers · ${data.pricing_available} priced · ${data.departures_tested} departure times tested`;
     document.getElementById('warnings').innerHTML = data.warnings.map(w => `<div class="warning">${esc(w)}</div>`).join('');
     renderReplayValidation(data.replay_validation);
+    planPriceVersions = data.price_versions || {};
     renderMissing();
-    priceBaseline = null;
-    checkServerPrices();  // record what the server has right now, so later changes trigger a re-plan
+    refreshPriceSession();
     const best = data.plans[0];
     if (best) {
       toggleForm(false);
@@ -1096,7 +1075,7 @@ async function runTrip(payload) {
 
 document.getElementById('stations').addEventListener('click', event => {
   const check = event.target.closest('a[data-check]');
-  if (check) { waitingFor.add(check.dataset.check); watchServerPrices(); return; }
+  if (check) { markOpening([check.dataset.check]); return; }
   const use = event.target.closest('.my-price-btn');
   const clear = event.target.closest('[data-clear-price]');
   if (!use && !clear) return;
@@ -1138,8 +1117,10 @@ document.getElementById('trip-form').addEventListener('submit', event => {
     replay_scenario:replayScenario,
     excluded_station_ids: [],
     price_overrides: myPricesPayload(),
-    captured_prices: capturedPayload()
+    // A new trip gets a new price session; re-plans of this trip reuse it.
+    price_session: (priceSession = newPriceSession())
   };
+  sessionState = {};
   saveLastTrip(request);
   runTrip(request);
 });

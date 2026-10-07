@@ -152,3 +152,102 @@ def test_price_status_reports_update_times_and_sees_new_prices(tmp_path, monkeyp
     store.remember_pricing(LEX, flat)  # re-collected: the cached index must notice the file changed
     second = asyncio.run(main.price_status("lexingtonkysupercharger"))["prices"]
     assert second["lexingtonkysupercharger"] != first["lexingtonkysupercharger"]
+
+
+class Visitor:
+    def __init__(self, ip="203.0.113.7"):
+        self.headers = {}
+        self.client = type("Client", (), {"host": ip})()
+
+
+def test_price_session_tracks_trip_stations(monkeypatch, tmp_path):
+    from app.chargers.knowledge_store import ChargerKnowledgeStore
+    store = ChargerKnowledgeStore(tmp_path / "k.json")
+    monkeypatch.setattr(main, "charger_knowledge", store)
+    monkeypatch.setattr(main, "price_sessions", {})
+    from app.pricing.guards import CommunityGate
+    monkeypatch.setattr(main, "community_gate", CommunityGate(tmp_path / "audit.jsonl", 60, 0.5))
+    other = Charger(id="o", location_id="other", name="Other", coordinate=Coordinate(lat=0, lon=0), country="USA")
+
+    async def catalog():
+        return {LEX.location_id: LEX, other.location_id: other}
+    monkeypatch.setattr(main, "_catalog_by_id", catalog)
+    session = main._price_session("abcdef123456", create=True)
+    session["stations"] = {LEX.location_id}
+    state = lambda: asyncio.run(main.price_session_state("abcdef123456"))["stations"]
+    assert state()[LEX.location_id]["status"] == "missing"
+
+    asyncio.run(main.price_session_opening("abcdef123456", main.SessionStationsRequest(station_ids=[LEX.location_id, "other"])))
+    assert state()[LEX.location_id]["status"] == "opening" and "other" not in state()  # only the trip's stations
+    session["opening"][LEX.location_id] = 0  # the 90 s window passed: a blocked/closed tab doesn't stay stuck
+    assert state()[LEX.location_id]["status"] == "missing"
+
+    req = lambda **kw: main.SessionCaptureRequest(page_url=f"https://www.tesla.com/findus?location={LEX.location_id}", **kw)
+    asyncio.run(main.price_session_captured("abcdef123456", req(failed="Tesla showed Access Denied"), Visitor()))
+    assert state()[LEX.location_id] == {"status": "failed", "reason": "Tesla showed Access Denied"}
+    result = asyncio.run(main.price_session_captured("abcdef123456", req(payload=PAYLOAD), Visitor()))
+    assert result["summary"] == "$0.39/kWh" and result["shared"] == "accepted"
+    priced = state()[LEX.location_id]
+    assert priced["status"] == "priced" and priced["source"] == "captured"
+    assert store.pricing(LEX.location_id).bands[0].price_per_kwh == 0.39  # first report for a station: shared
+    assert main._price_versions([LEX], session)[LEX.location_id] == priced["updated_at"]  # plan and session agree
+
+    with pytest.raises(HTTPException):
+        asyncio.run(main.price_session_captured("abcdef123456", main.SessionCaptureRequest(page_url="https://www.tesla.com/findus?location=other", payload=PAYLOAD), Visitor()))
+    with pytest.raises(HTTPException):
+        asyncio.run(main.price_session_state("nosuchsession"))
+
+
+def payload_with(rate, **extra):
+    row = {"feeType": "CHARGING", "uom": "kwh", "vehicleMakeType": "TSLA", "rateBase": rate, "isTou": False, **extra}
+    return {"data": {"effectivePricebooks": [row]}}
+
+
+def test_guardrails_reject_bad_shapes_bounds_and_wrong_station():
+    from app.pricing.guards import PriceRejected, check_price_bounds, names_other_station, validate_payload_shape
+    for bad in ({"data": {}}, {"data": {"effectivePricebooks": ["x"]}}, payload_with("0.30"),
+                payload_with(0.3, startTime="25h"), {"data": {"effectivePricebooks": [{}] * 100}},
+                {"data": {"effectivePricebooks": [{"feeType": "CHARGING", "pad": "x" * 70000}]}}):
+        with pytest.raises(PriceRejected):
+            validate_payload_shape(bad)
+    validate_payload_shape(PAYLOAD)
+    for rate in (0.01, 3.0):
+        with pytest.raises(PriceRejected):
+            check_price_bounds(main.parse_tesla_pricing_payload(payload_with(rate), "x"))
+    check_price_bounds(main.parse_tesla_pricing_payload(payload_with(0.42), "x"))
+    assert names_other_station({"data": {"slug": "other"}}, "lexingtonkysupercharger", {"other", "lexingtonkysupercharger"})
+
+
+def test_community_gate_holds_big_changes_until_a_second_report_and_rate_limits(tmp_path):
+    from app.pricing.guards import CommunityGate
+    gate = CommunityGate(tmp_path / "a.jsonl", per_hour=3, change_threshold=0.5)
+    parse = lambda rate: main.parse_tesla_pricing_payload(payload_with(rate), "x")
+    saved = parse(0.40)
+    assert gate.decide("s", parse(0.45), "alice", saved) == "accepted"   # small change: goes live
+    assert gate.decide("s", parse(0.10), "alice", saved) == "pending"    # -75%: waits
+    assert gate.decide("s", parse(0.10), "alice", saved) == "pending"    # same person again doesn't count
+    assert gate.decide("s", parse(0.10), "bob", saved) == "accepted"     # second, independent report
+    assert gate.decide("t", parse(0.30), "carol", None) == "accepted"    # first price for a station
+    for _ in range(2):
+        gate.decide("u", parse(0.30), "carol", None)
+    assert gate.decide("v", parse(0.30), "carol", None) == "rate_limited"
+
+
+def test_owner_can_undo_everything_from_one_contributor(monkeypatch, tmp_path):
+    from dataclasses import replace
+    from app.chargers.knowledge_store import ChargerKnowledgeStore
+    from app.pricing.guards import CommunityGate
+    store = ChargerKnowledgeStore(tmp_path / "k.json")
+    monkeypatch.setattr(main, "charger_knowledge", store)
+    monkeypatch.setattr(main, "community_gate", CommunityGate(tmp_path / "audit.jsonl", 60, 0.5))
+    monkeypatch.setattr(main, "settings", replace(main.settings, collector_key="owner-key", community_prices=True))
+    good = main.parse_tesla_pricing_payload(payload_with(0.40), "x")
+    store.remember_pricing(LEX, good, source="collector:owner")
+    vandal = Visitor("198.51.100.9")
+    assert main._share_community_price(LEX, main.parse_tesla_pricing_payload(payload_with(0.50), "x"), vandal) == "accepted"
+    assert store.pricing(LEX.location_id).bands[0].price_per_kwh == 0.50
+    contributor = main._contributor(vandal)
+    result = asyncio.run(main.revert_contributor(main.RevertRequest(contributor=contributor), KeyRequest("owner-key")))
+    assert result["restored"] == 1
+    assert store.pricing(LEX.location_id).bands[0].price_per_kwh == 0.40  # the owner's price is back
+    assert any(e["kind"] == "revert" for e in main.community_gate.recent())

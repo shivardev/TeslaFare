@@ -60,6 +60,14 @@ class Settings:
     # SERVER_PRICE_LOOKUPS=true (headless Firefox, background refresher).
     server_price_lookups: bool = _bool("SERVER_PRICE_LOOKUPS", False)
     collector_key: str = os.getenv("COLLECTOR_KEY", "")
+    # Visitors' captured prices also go into the shared prices, behind guardrails (shape, bounds, a second
+    # report for big changes, a per-IP hourly cap, and an audit log the owner can undo).
+    community_prices: bool = _bool("COMMUNITY_PRICES", True)
+    # Behind Cloudflare or a reverse proxy every request comes from the proxy; name the header that carries the
+    # visitor's real IP (e.g. CF-Connecting-IP or X-Forwarded-For). Leave empty when visitors connect directly.
+    client_ip_header: str = os.getenv("CLIENT_IP_HEADER", "")
+    community_per_hour: int = int(os.getenv("COMMUNITY_PER_HOUR", "60"))
+    community_change_threshold: float = float(os.getenv("COMMUNITY_CHANGE_THRESHOLD", "0.5"))
     # Extra people allowed to send prices: "alice:key1,bob:key2". Prices record who sent them.
     contributor_keys: str = os.getenv("CONTRIBUTOR_KEYS", "")
     # After a collector reports Tesla's "Access Denied", collection pauses this long.

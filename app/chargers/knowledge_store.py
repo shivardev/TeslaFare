@@ -91,6 +91,26 @@ class ChargerKnowledgeStore:
         except (TypeError, ValueError):
             return None
 
+    def pricing_record(self, location_id: str) -> dict[str, Any]:
+        """The raw saved price fields of one station (for the audit log's undo)."""
+        with self._lock:
+            record = self._read_unlocked()["chargers"].get(location_id) or {}
+        return {key: record.get(key) for key in ("pricing", "pricing_updated_at", "pricing_source")}
+
+    def restore_pricing(self, location_id: str, previous: dict[str, Any]) -> None:
+        """Put back an earlier saved price (or remove the price if there was none)."""
+        with self._lock:
+            payload = self._read_unlocked()
+            record = payload["chargers"].get(location_id)
+            if not isinstance(record, dict):
+                return
+            for key in ("pricing", "pricing_updated_at", "pricing_source"):
+                if previous.get(key) is None:
+                    record.pop(key, None)
+                else:
+                    record[key] = previous[key]
+            self._write_unlocked(payload)
+
     def price_index(self) -> dict[str, tuple[str, PricingSchedule]]:
         """id -> (pricing_updated_at, schedule) for every saved price. Cached until the file changes,
         so frequent checks from open planner tabs don't re-parse the whole store."""

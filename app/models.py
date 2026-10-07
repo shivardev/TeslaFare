@@ -137,5 +137,8 @@ class TripResponse(BaseModel):
     plans: list[TripPlan]
     departure_options: list[TripPlan] = Field(default_factory=list)
     replay_validation: dict | None = None
+    # Station id -> version (update time) of the saved/captured price this plan used. The planner
+    # compares this with the price session to know when a newer price should trigger a re-plan.
+    price_versions: dict[str, str] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     vehicle_assumptions: dict[str, float | str]

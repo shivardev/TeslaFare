@@ -1,28 +1,25 @@
 // ==UserScript==
 // @name         TeslaFare price helper
 // @namespace    teslafare
-// @version      3.0
-// @description  Reads the Supercharger price Tesla's Find Us page shows you and hands it to your TeslaFare planner.
+// @version      4.1
+// @description  Reads the Supercharger price Tesla's Find Us page shows you and sends it to your TeslaFare trip.
 // @match        https://www.tesla.com/findus*
 // @include      __SERVER__/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM_addValueChangeListener
 // @grant        GM_registerMenuCommand
 // @connect      __HOST__
 // ==/UserScript==
 (function () {
   'use strict';
-  const VERSION = '3.0';
+  const VERSION = '4.1';
   const SERVER = '__SERVER__';
   const BUILT_IN_KEY = '__KEY__';
-  // Captured prices are kept this long for the visitor's own trips.
-  const CAPTURE_TTL_MS = 24 * 3600 * 1000;
-
+  // Every tab opened by a TeslaFare planner carries that planner's price session in its name
+  // ("teslafare-s-<session>-<n>"): the captured price goes to that trip's session on the server.
   // Host mode: with a collector key, prices are also saved on the server for everyone.
-  // Visitor mode (no key): prices only go to this browser's TeslaFare tab, for this person's trips.
   function collectorKey() {
     if (BUILT_IN_KEY && !BUILT_IN_KEY.startsWith('__')) return BUILT_IN_KEY;
     return GM_getValue('collectorKey', '');
@@ -32,27 +29,16 @@
     if (entered !== null) GM_setValue('collectorKey', entered.trim());
   });
 
-  function captures() {
-    const now = Date.now();
-    const all = GM_getValue('captures', {}) || {};
-    return Object.fromEntries(Object.entries(all).filter(([, c]) => now - c.at < CAPTURE_TTL_MS));
-  }
-
-  // ---------- On the TeslaFare planner page: pass captured prices to the page ----------
+  // ---------- On the TeslaFare planner page: just say the helper is installed ----------
   if (location.href.startsWith(SERVER)) {
     document.documentElement.setAttribute('data-teslafare-helper', VERSION);
-    const deliver = () => window.postMessage({type: 'teslafare-captures', captures: captures(), helper: VERSION}, location.origin);
-    deliver();
-    GM_addValueChangeListener('captures', (name, oldValue, newValue, remote) => { if (remote) deliver(); });
-    window.addEventListener('message', event => {
-      if (event.source === window && event.data && event.data.type === 'teslafare-helper-ping') deliver();
-    });
     return;
   }
 
   // ---------- On Tesla's Find Us page: capture the price ----------
   // Tabs opened by TeslaFare (planner or /collect) close themselves once their price is captured.
   const OPENED_BY_TESLAFARE = window.name.startsWith('teslafare-');
+  const SESSION = (window.name.match(/^teslafare-s-([A-Za-z0-9_]{8,64})-/) || [])[1] || '';
   const seen = new Set();
 
   function api(method, path, body) {
@@ -131,6 +117,7 @@
   // Tesla's bot protection page: report it once (host mode) and stop, rather than keep loading pages.
   if (/access denied/i.test(document.title) || /access denied/i.test(document.body?.innerText?.slice(0, 300) || '')) {
     if (collectorKey()) api('POST', '/api/collector/blocked');
+    if (SESSION && stationId()) api('POST', `/api/price-sessions/${SESSION}/captured`, {station_id: stationId(), failed: 'Tesla showed Access Denied'});
     panel("Tesla shows Access Denied right now. Please wait a while before opening more stations.", 'warn');
     return;
   }
@@ -149,13 +136,14 @@
         panel("couldn't read this station's details", 'warn');
         continue;
       }
-      const id = stationId();
-      if (id) {
-        const all = captures();
-        all[id] = {payload, at: Date.now()};
-        GM_setValue('captures', all);
+      let message = 'price captured';
+      if (SESSION) {
+        const {status, data} = await api('POST', `/api/price-sessions/${SESSION}/captured`,
+          {page_url: location.href, request_url: url, payload, station_id: stationId()});
+        const shared = {accepted: ' and shared it', pending: '; it will be shared once someone else confirms it'}[data.shared] || '';
+        message = status === 200 ? `got ${data.station_name}: ${data.summary} for your trip${shared}` : (data.detail || ('server answered ' + status));
+        if (status !== 200 && !collectorKey()) { panel(message, 'warn'); continue; }
       }
-      let message = 'price captured for your TeslaFare trip';
       if (collectorKey()) {
         const {status, data} = await api('POST', '/api/collector/price', {page_url: location.href, request_url: url, payload});
         message = status === 200 ? `saved ${data.station_name}: ${data.summary}` : (data.detail || ('server answered ' + status));
