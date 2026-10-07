@@ -473,3 +473,21 @@ tr.detail-row.open .detail-wrap { grid-template-rows: 1fr; }
 .stations-table small .link-btn { margin: 0; font-size: 11px; }
 
 a.primary-btn, a.ghost-btn { text-decoration: none; }
+
+/* Prices missing for this trip */
+.missing-panel { padding: 16px 20px; border-left: 3px solid var(--amber); display: grid; gap: 12px; }
+.missing-panel[hidden] { display: none; }
+.missing-head p { margin: 6px 0 0; color: var(--soft); font-size: 13px; }
+.missing-status { padding: 8px 12px; border-radius: 6px; background: #12141a; color: var(--text); font-size: 13px; }
+.missing-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.missing-actions .muted, .missing-panel .muted { color: var(--muted); font-size: 12px; }
+.helper-setup summary, .missing-list summary { cursor: pointer; font-size: 13px; color: var(--text); }
+.helper-setup ol { margin: 8px 0 4px; padding-left: 20px; color: var(--soft); font-size: 13px; line-height: 1.7; }
+.helper-setup a, .missing-list a { color: var(--amber); }
+.missing-list ul { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.missing-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 8px 10px; border-radius: 6px; background: #0f1013; font-size: 13px; }
+.missing-list li small { display: block; color: var(--muted); font-size: 11px; }
+.my-price-inline { display: flex; gap: 6px; }
+.my-price-inline input { width: 74px; height: 28px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 5px; background: #050506; color: var(--text); font: 13px inherit; }
+.my-price-inline button { height: 28px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 5px; background: #17181c; color: var(--text); font: 600 12px inherit; cursor: pointer; }
+@media (max-width: 760px) { .missing-list li { grid-template-columns: 1fr; } }

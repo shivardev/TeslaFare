@@ -95,7 +95,7 @@ class CandidateCharger(BaseModel):
     route_progress: float
     corridor_distance_miles: float
     detour_minutes: float | None = None
-    pricing_status: Literal["verified", "historical", "manual", "estimated", "unknown"] = "unknown"
+    pricing_status: Literal["verified", "historical", "manual", "captured", "estimated", "unknown"] = "unknown"
     pricing: PricingSchedule | None = None
     eligible: bool = False
     user_excluded: bool = False

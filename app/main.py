@@ -181,6 +181,9 @@ class TripRequest(BaseModel):
     stops: list[StopRequest] = Field(default_factory=list, max_length=8)
     # Prices the visitor typed in ($/kWh by station id). Used for this trip only; never stored on the server.
     price_overrides: dict[str, float] = Field(default_factory=dict, max_length=200)
+    # Tesla get-charger-details data captured by the visitor's browser helper, by station id.
+    # Parsed for this trip only and never stored on the server.
+    captured_prices: dict[str, dict] = Field(default_factory=dict, max_length=60)
     fallback_price_per_kwh: float | None = Field(default=0.40, ge=0.01, le=2.0)
     excluded_station_ids: list[str] = Field(default_factory=list, max_length=100)
     use_charger_cache: bool = True
@@ -298,6 +301,7 @@ async def _fill_timezones(candidates: list[Charger]) -> None:
 USABLE_PRICE_KINDS = {"flat", "time_of_use"}
 # Starts with "User-entered" so it is treated as a manual price everywhere.
 VISITOR_PRICE_NOTE = "User-entered for this trip only; not shared"
+CAPTURED_PRICE_NOTE = "User-entered: captured from Tesla in this visitor's browser for this trip; not shared"
 
 
 # progress_id -> event set when the user asks to stop waiting for live prices.
@@ -787,6 +791,13 @@ async def trip(req: TripRequest) -> TripResponse:
         price_refresher.note_trip_stations([c.location_id for c in candidates])
         pricing = await _fetch_prices(candidates, req.use_charger_cache, req.progress_id)
         for charger in candidates:
+            captured = req.captured_prices.get(charger.location_id)
+            if captured:
+                schedule = parse_tesla_pricing_payload(captured, findus_url_for(charger))
+                if schedule.kind in USABLE_PRICE_KINDS:
+                    schedule.note = CAPTURED_PRICE_NOTE
+                    pricing[charger.location_id] = schedule
+        for charger in candidates:
             entered = req.price_overrides.get(charger.location_id)
             if entered is not None:
                 pricing[charger.location_id] = PricingSchedule(
@@ -1031,6 +1042,7 @@ async def trip(req: TripRequest) -> TripResponse:
             schedule = pricing.get(charger.location_id)
             price_status = (
                 "historical" if schedule and schedule.note and schedule.note.startswith("Historical observed")
+                else "captured" if schedule and schedule.note == CAPTURED_PRICE_NOTE
                 else "manual" if schedule and schedule.note and schedule.note.startswith("User-entered")
                 else "verified" if schedule and schedule.kind in {"flat", "time_of_use"}
                 else "estimated" if schedule and schedule.kind == "estimate"

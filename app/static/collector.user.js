@@ -1,41 +1,65 @@
 // ==UserScript==
-// @name         TeslaFare price collector
+// @name         TeslaFare price helper
 // @namespace    teslafare
-// @version      2.1
-// @description  Sends the Supercharger price Tesla's Find Us page shows you to your TeslaFare server.
+// @version      3.0
+// @description  Reads the Supercharger price Tesla's Find Us page shows you and hands it to your TeslaFare planner.
 // @match        https://www.tesla.com/findus*
+// @include      __SERVER__/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_addValueChangeListener
 // @grant        GM_registerMenuCommand
 // @connect      __HOST__
 // ==/UserScript==
 (function () {
   'use strict';
+  const VERSION = '3.0';
   const SERVER = '__SERVER__';
   const BUILT_IN_KEY = '__KEY__';
-  // Tabs opened from /collect (Open next, Open next 5, or a row's link) close themselves once their price
-  // is saved. Tesla tabs you open yourself are left alone.
-  const COLLECTOR_TAB = window.name.startsWith('teslafare-');
-  const seen = new Set();
+  // Captured prices are kept this long for the visitor's own trips.
+  const CAPTURE_TTL_MS = 24 * 3600 * 1000;
 
-  function collectorKey(ask) {
-    if (BUILT_IN_KEY && !BUILT_IN_KEY.startsWith('__') && !ask) return BUILT_IN_KEY;
-    let key = GM_getValue('collectorKey', '');
-    if (!key || ask) {
-      const entered = prompt('TeslaFare collector key:', key);
-      if (entered !== null) { key = entered.trim(); GM_setValue('collectorKey', key); }
-    }
-    return key;
+  // Host mode: with a collector key, prices are also saved on the server for everyone.
+  // Visitor mode (no key): prices only go to this browser's TeslaFare tab, for this person's trips.
+  function collectorKey() {
+    if (BUILT_IN_KEY && !BUILT_IN_KEY.startsWith('__')) return BUILT_IN_KEY;
+    return GM_getValue('collectorKey', '');
   }
-  GM_registerMenuCommand('Set TeslaFare collector key', () => collectorKey(true));
+  GM_registerMenuCommand('Set TeslaFare collector key (site owners only)', () => {
+    const entered = prompt('TeslaFare collector key (leave empty if you are not the site owner):', GM_getValue('collectorKey', ''));
+    if (entered !== null) GM_setValue('collectorKey', entered.trim());
+  });
+
+  function captures() {
+    const now = Date.now();
+    const all = GM_getValue('captures', {}) || {};
+    return Object.fromEntries(Object.entries(all).filter(([, c]) => now - c.at < CAPTURE_TTL_MS));
+  }
+
+  // ---------- On the TeslaFare planner page: pass captured prices to the page ----------
+  if (location.href.startsWith(SERVER)) {
+    document.documentElement.setAttribute('data-teslafare-helper', VERSION);
+    const deliver = () => window.postMessage({type: 'teslafare-captures', captures: captures(), helper: VERSION}, location.origin);
+    deliver();
+    GM_addValueChangeListener('captures', (name, oldValue, newValue, remote) => { if (remote) deliver(); });
+    window.addEventListener('message', event => {
+      if (event.source === window && event.data && event.data.type === 'teslafare-helper-ping') deliver();
+    });
+    return;
+  }
+
+  // ---------- On Tesla's Find Us page: capture the price ----------
+  // Tabs opened by TeslaFare (planner or /collect) close themselves once their price is captured.
+  const OPENED_BY_TESLAFARE = window.name.startsWith('teslafare-');
+  const seen = new Set();
 
   function api(method, path, body) {
     return new Promise(resolve => GM_xmlhttpRequest({
       method,
       url: SERVER + path,
-      headers: {'Content-Type': 'application/json', 'X-Collector-Key': collectorKey(false)},
+      headers: {'Content-Type': 'application/json', 'X-Collector-Key': collectorKey()},
       data: body ? JSON.stringify(body) : undefined,
       onload: response => {
         let data = {};
@@ -47,15 +71,13 @@
   }
 
   const stationId = () => new URLSearchParams(location.search).get('location') || '';
-  // Browsers only let a script close a tab it opened (and one that hasn't navigated around);
-  // if closing is refused, fall back to the Next/Skip panel.
+  // Browsers only let a script close a tab it opened (and one that hasn't navigated around).
   function closeTab(message) {
     (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).close();
-    setTimeout(() => panel(message || 'done. Close this tab or press N for the next station.', 'ok'), 500);
+    setTimeout(() => panel(message || 'done. You can close this tab.', 'ok', Boolean(collectorKey())), 500);
   }
 
-  // A small panel bottom-right: status, plus Next/Skip (also keys N and S).
-  function panel(message, tone, withActions = true) {
+  function panel(message, tone, withActions = false) {
     let el = document.getElementById('teslafare-panel');
     if (!el) {
       el = document.createElement('div');
@@ -83,42 +105,38 @@
     }
   }
 
+  // Next/Skip walk the owner's collection queue, so they only exist in host mode.
   async function goNext() {
-    panel('finding the next station…', 'info', false);
+    if (!collectorKey()) return;
+    panel('finding the next station…', 'info');
     const {status, data} = await api('GET', '/api/collector/next?count=1');
-    if (status !== 200) { panel(data.detail || ('server answered ' + status), 'warn'); return; }
-    if (data.paused_until) { panel('collection is paused because Tesla blocked a page. Try again later.', 'warn', false); return; }
-    if (!data.items.length) { panel('every station has a fresh price 🎉', 'ok', false); return; }
+    if (status !== 200) { panel(data.detail || ('server answered ' + status), 'warn', true); return; }
+    if (data.paused_until) { panel('collection is paused because Tesla blocked a page. Try again later.', 'warn'); return; }
+    if (!data.items.length) { panel('every station has a fresh price 🎉', 'ok'); return; }
     location.href = data.items[0].tesla_url;
   }
-
   async function skip() {
+    if (!collectorKey()) return;
     const id = stationId();
     if (id) await api('POST', '/api/collector/skip', {station_id: id});
-    if (COLLECTOR_TAB) closeTab('skipped. Close this tab or press N for the next station.'); else goNext();
+    if (OPENED_BY_TESLAFARE) closeTab('skipped.'); else goNext();
   }
-
   document.addEventListener('keydown', event => {
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!collectorKey() || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable]')) return;
     if (event.key === 'n' || event.key === 'N') goNext();
     if (event.key === 's' || event.key === 'S') skip();
   });
 
-  // Tesla's bot protection page: report it once and stop, rather than keep loading pages.
+  // Tesla's bot protection page: report it once (host mode) and stop, rather than keep loading pages.
   if (/access denied/i.test(document.title) || /access denied/i.test(document.body?.innerText?.slice(0, 300) || '')) {
-    api('POST', '/api/collector/blocked');
-    panel("Tesla shows Access Denied, so collection is paused for a while. Please don't keep reloading.", 'warn', false);
+    if (collectorKey()) api('POST', '/api/collector/blocked');
+    panel("Tesla shows Access Denied right now. Please wait a while before opening more stations.", 'warn');
     return;
   }
 
-  async function remainingText() {
-    const {status, data} = await api('GET', '/api/collector/queue?limit=1');
-    return status === 200 ? ` · ${(data.counts.stale + data.counts.missing).toLocaleString()} left` : '';
-  }
-
   // The map loads each station's details (including pricing) from a get-charger-details request.
-  // Read that same data once and hand it to the server, which parses and saves it.
+  // Read that same data once: keep it for this browser's planner tab, and in host mode save it on the server.
   async function check() {
     const urls = performance.getEntriesByType('resource').map(entry => entry.name)
       .filter(url => url.includes('get-charger-details') && !seen.has(url));
@@ -131,16 +149,23 @@
         panel("couldn't read this station's details", 'warn');
         continue;
       }
-      const {status, data} = await api('POST', '/api/collector/price', {page_url: location.href, request_url: url, payload});
-      if (status === 200) {
-        if (COLLECTOR_TAB) {
-          panel(`saved ${data.station_name}: ${data.summary}. Closing…`, 'ok', false);
-          setTimeout(() => closeTab(`saved ${data.station_name}: ${data.summary}`), 600);
-        } else {
-          panel(`saved ${data.station_name}: ${data.summary}${await remainingText()}`, 'ok');
-        }
+      const id = stationId();
+      if (id) {
+        const all = captures();
+        all[id] = {payload, at: Date.now()};
+        GM_setValue('captures', all);
+      }
+      let message = 'price captured for your TeslaFare trip';
+      if (collectorKey()) {
+        const {status, data} = await api('POST', '/api/collector/price', {page_url: location.href, request_url: url, payload});
+        message = status === 200 ? `saved ${data.station_name}: ${data.summary}` : (data.detail || ('server answered ' + status));
+        if (status !== 200) { panel(message, 'warn', true); continue; }
+      }
+      if (OPENED_BY_TESLAFARE) {
+        panel(message + '. Closing…', 'ok');
+        setTimeout(() => closeTab(message), 600);
       } else {
-        panel(data.detail || ('server answered ' + status), 'warn');
+        panel(message, 'ok', Boolean(collectorKey()));
       }
     }
   }

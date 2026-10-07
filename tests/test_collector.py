@@ -130,3 +130,10 @@ def test_price_export_and_central_import_round_trip(tmp_path):
     assert target.import_prices({**exported, **junk}, source="central") == 1  # malformed or unpriced entries are ignored
     assert target.pricing("lexingtonkysupercharger").bands[0].price_per_kwh == 0.39
     assert target.pricing("evil") is None
+
+
+def test_visitor_captured_prices_are_accepted_per_trip_only():
+    req = main.TripRequest(from_location="A city", to_location="B city", captured_prices={"lexingtonkysupercharger": PAYLOAD})
+    schedule = main.parse_tesla_pricing_payload(req.captured_prices["lexingtonkysupercharger"], "x")
+    assert schedule.kind == "flat" and schedule.bands[0].price_per_kwh == 0.39  # Tesla-vehicle row, not non-Tesla
+    assert main.CAPTURED_PRICE_NOTE.startswith("User-entered")  # treated as a visitor price, never "verified"

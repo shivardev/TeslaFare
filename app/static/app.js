@@ -37,7 +37,116 @@ function myPricesPayload(prices = myPrices()) {
   // Newest first; the server accepts up to 200.
   return Object.fromEntries(Object.entries(prices).sort((a, b) => b[1].at - a[1].at).slice(0, 200).map(([id, v]) => [id, v.price]));
 }
-const STATUS_LABELS = {verified:'Live', cached:'Cached', historical:'Historical', manual:'Entered by you', estimated:'Estimated', unknown:'Unknown', fetching:'Fetching', excluded:'Excluded'};
+// Prices the TeslaFare browser helper captured from Tesla's pages: kept in this browser for 24 h and
+// sent with this visitor's trips only (the server parses them per trip and never stores them).
+const CAPTURED_KEY = 'teslafare.captured';
+const CAPTURE_TTL_MS = 24 * 3600 * 1000;
+let helperVersion = document.documentElement.getAttribute('data-teslafare-helper');
+let replanTimer = null;
+const waitingFor = new Set();
+function capturedPrices() {
+  try {
+    const now = Date.now();
+    const all = JSON.parse(localStorage.getItem(CAPTURED_KEY) || '{}') || {};
+    return Object.fromEntries(Object.entries(all).filter(([, c]) => now - c.at < CAPTURE_TTL_MS));
+  } catch (_) { return {}; }
+}
+function capturedPayload() {
+  return Object.fromEntries(Object.entries(capturedPrices()).sort((a, b) => b[1].at - a[1].at).slice(0, 60).map(([id, c]) => [id, c.payload]));
+}
+const findusUrl = id => `https://www.tesla.com/findus?location=${encodeURIComponent(id)}`;
+function missingStations() {
+  if (!tripData) return [];
+  const mine = myPrices();
+  return tripData.nearby_chargers.filter(c => !c.user_excluded && !mine[c.station_id] && (c.pricing_status === 'unknown' || c.pricing_status === 'estimated'));
+}
+// The helper (userscript) announces itself and hands over captured prices with window.postMessage.
+window.addEventListener('message', event => {
+  if (event.source !== window || !event.data || event.data.type !== 'teslafare-captures') return;
+  const firstContact = !helperVersion;
+  helperVersion = event.data.helper || helperVersion || 'yes';
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem(CAPTURED_KEY) || '{}') || {}; } catch (_) { /* private mode */ }
+  const fresh = [];
+  for (const [id, capture] of Object.entries(event.data.captures || {})) {
+    if (!stored[id] || stored[id].at < capture.at) { stored[id] = capture; fresh.push(id); }
+  }
+  try { localStorage.setItem(CAPTURED_KEY, JSON.stringify(stored)); } catch (_) { /* this page only */ }
+  fresh.forEach(id => waitingFor.delete(id));
+  const missingIds = new Set(missingStations().map(c => c.station_id));
+  if (lastRequest && fresh.some(id => missingIds.has(id))) {
+    // Batch captures from several tabs into one re-plan.
+    clearTimeout(replanTimer);
+    renderMissing(`Got ${fresh.filter(id => missingIds.has(id)).length} new price(s) from Tesla, updating your plan…`);
+    replanTimer = setTimeout(() => runTrip({...lastRequest, captured_prices: capturedPayload()}), 2500);
+  } else if (firstContact && tripData) {
+    renderMissing();
+  }
+});
+window.postMessage({type: 'teslafare-helper-ping'}, location.origin);
+
+// Open Tesla tabs for missing stations; with the helper each one captures its price and closes itself.
+function openMissing(ids) {
+  const tabs = ids.map((id, i) => window.open('about:blank', `teslafare-plan-${i}`));
+  const blocked = tabs.filter(tab => !tab).length;
+  ids.forEach((id, i) => {
+    if (!tabs[i]) return;
+    waitingFor.add(id);
+    setTimeout(() => { tabs[i].location.href = findusUrl(id); }, i * 1000);
+  });
+  renderMissing(blocked ? `Your browser blocked ${blocked} tab(s). Choose "Allow pop-ups" for this site, then click again.` : `Opened ${ids.length - blocked} Tesla tab(s); prices arrive in a few seconds…`);
+}
+
+function renderMissing(status) {
+  const section = document.getElementById('missing-prices');
+  const missing = missingStations();
+  section.hidden = !missing.length;
+  if (!missing.length) { section.innerHTML = ''; return; }
+  const estimate = Number(lastRequest?.fallback_price_per_kwh ?? 0.4).toFixed(2);
+  const next = missing.filter(c => !waitingFor.has(c.station_id)).slice(0, 5);
+  const helperHtml = helperVersion
+    ? `<div class="missing-actions">
+         <button id="fetch-missing" class="primary-btn" type="button" ${next.length ? '' : 'disabled'}>Fetch ${next.length === missing.length ? 'missing prices' : `next ${next.length}`} automatically</button>
+         <span class="muted">Opens Tesla tabs that read the price and close themselves. Your plan updates on its own.</span>
+       </div>`
+    : `<details class="helper-setup"><summary><b>Get these prices automatically (1-minute setup)</b></summary>
+         <ol>
+           <li>Install <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> for your browser.</li>
+           <li>Install the <a href="/collector.user.js" target="_blank">TeslaFare price helper</a> (Tampermonkey shows an Install button).</li>
+           <li>Reload this page and plan again. A <b>Fetch missing prices</b> button appears here.</li>
+         </ol>
+         <p class="muted">The helper only reads the price Tesla's site shows you, in your own browser, and passes it to this page. Prices it captures are used for your trips and aren't shared.</p>
+       </details>`;
+  const rows = missing.map(c => `
+    <li>
+      <span><b>${esc(stationName(c.station_name))}</b><small>${esc(cityState(c.address) || '')}${waitingFor.has(c.station_id) ? ' · waiting for Tesla tab…' : ''}</small></span>
+      <a href="${esc(findusUrl(c.station_id))}" target="teslafare-single-${esc(c.station_id)}" rel="opener">Open on Tesla ↗</a>
+      <span class="my-price-inline"><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span>
+    </li>`).join('');
+  section.innerHTML = `
+    <div class="missing-head">
+      <div><h2 class="kicker">Prices missing for ${missing.length} station${missing.length === 1 ? '' : 's'}</h2>
+      <p>This plan uses your $${estimate}/kWh estimate for them. Get the real price automatically, or open a station on Tesla and type its price.</p></div>
+    </div>
+    ${status ? `<div class="missing-status">${esc(status)}</div>` : ''}
+    ${helperHtml}
+    <details class="missing-list" ${missing.length <= 6 ? 'open' : ''}><summary>${missing.length} station${missing.length === 1 ? '' : 's'} without a price</summary><ul>${rows}</ul></details>`;
+  document.getElementById('fetch-missing')?.addEventListener('click', () => openMissing(next.map(c => c.station_id)));
+}
+document.getElementById('missing-prices').addEventListener('click', event => {
+  const use = event.target.closest('.my-price-btn');
+  if (!use) return;
+  const input = use.parentElement.querySelector('input');
+  const price = Number(input.value);
+  if (!Number.isFinite(price) || price < 0.01 || price > 2) {
+    input.setCustomValidity('Enter a price between $0.01 and $2.00 per kWh.');
+    input.reportValidity();
+    return;
+  }
+  use.disabled = true;
+  runTrip({...lastRequest, price_overrides: myPricesPayload(setMyPrice(use.dataset.myPrice, price))});
+});
+const STATUS_LABELS = {verified:'Live', cached:'Cached', historical:'Historical', manual:'Entered by you', captured:'From your browser', estimated:'Estimated', unknown:'Unknown', fetching:'Fetching', excluded:'Excluded'};
 const CATEGORY_LABELS = {'CHEAPEST':'Lowest cost', 'CHEAP + FAST':'Cheap + fast', 'BALANCED':'Balanced', 'FASTEST REASONABLE':'Fastest', 'MOST EXPENSIVE REASONABLE':'Highest cost', 'WHAT IF':'What-if'};
 const icon = (id, cls = 'ico') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 const boltIcon = `<svg><use href="#i-bolt"/></svg>`;
@@ -915,6 +1024,7 @@ async function runTrip(payload) {
     status.textContent = `Base route ${data.base_route.distance_miles.toFixed(1)} mi · ${data.candidate_chargers} nearby chargers · ${data.pricing_available} priced · ${data.departures_tested} departure times tested`;
     document.getElementById('warnings').innerHTML = data.warnings.map(w => `<div class="warning">${esc(w)}</div>`).join('');
     renderReplayValidation(data.replay_validation);
+    renderMissing();
     const best = data.plans[0];
     if (best) {
       toggleForm(false);
@@ -976,7 +1086,8 @@ document.getElementById('trip-form').addEventListener('submit', event => {
     departure_window_hours:12,
     replay_scenario:replayScenario,
     excluded_station_ids: [],
-    price_overrides: myPricesPayload()
+    price_overrides: myPricesPayload(),
+    captured_prices: capturedPayload()
   };
   saveLastTrip(request);
   runTrip(request);
