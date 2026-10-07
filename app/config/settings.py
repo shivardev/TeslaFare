@@ -56,6 +56,19 @@ class Settings:
     live_price_lookups_per_hour: int = int(os.getenv("LIVE_PRICE_LOOKUPS_PER_HOUR", "30"))
     # Prices committed to git; merged into the local store at startup so fresh clones start with known prices.
     price_seed_path: Path = Path(os.getenv("PRICE_SEED_PATH", "app/data/price_seed.json"))
+    # Prices come from the host's browser userscript (/collect). The server only contacts Tesla itself when
+    # SERVER_PRICE_LOOKUPS=true (headless Firefox, background refresher).
+    server_price_lookups: bool = _bool("SERVER_PRICE_LOOKUPS", False)
+    collector_key: str = os.getenv("COLLECTOR_KEY", "")
+    price_fresh_hours: float = float(os.getenv("PRICE_FRESH_HOURS", "24"))
+    # Background refresh: stations per hour (0 turns it off), how old a price must be to refresh it,
+    # which countries to cover, and how many of the hourly requests are always kept for visitors.
+    price_refresh_per_hour: int = int(os.getenv("PRICE_REFRESH_PER_HOUR", "20"))
+    price_refresh_stale_days: float = float(os.getenv("PRICE_REFRESH_STALE_DAYS", "7"))
+    price_refresh_countries: str = os.getenv("PRICE_REFRESH_COUNTRIES", "USA")
+    price_refresh_visitor_reserve: int = int(os.getenv("PRICE_REFRESH_VISITOR_RESERVE", "10"))
+    # Prices typed in by visitors only apply to their own trips. Set true to let entered prices be saved for everyone.
+    allow_shared_manual_prices: bool = _bool("ALLOW_SHARED_MANUAL_PRICES", False)
     pricing_retry_failed_minutes: float = float(os.getenv("PRICING_RETRY_FAILED_MINUTES", "30"))
     user_agent: str = "teslafare/0.1 open-source-route-planner"
 

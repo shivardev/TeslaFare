@@ -35,6 +35,8 @@ def run(monkeypatch, saved, live, use_cache=True):
     knowledge, provider = FakeKnowledge(saved), FakeProvider(live)
     monkeypatch.setattr(main, "charger_knowledge", knowledge)
     monkeypatch.setattr(main, "price_provider", provider)
+    from dataclasses import replace
+    monkeypatch.setattr(main, "settings", replace(main.settings, server_price_lookups=True))
     pricing = asyncio.run(main._fetch_prices([STATION], use_cache))
     return pricing["s1"], provider.calls, knowledge.remembered
 
@@ -88,7 +90,7 @@ def test_pricing_deadline_returns_without_waiting_for_slow_stations(monkeypatch)
     monkeypatch.setattr(main, "charger_knowledge", FakeKnowledge(None))
     monkeypatch.setattr(main, "price_provider", SlowProvider(FLAT))
     from dataclasses import replace
-    monkeypatch.setattr(main, "settings", replace(main.settings, pricing_deadline_seconds=0.2))
+    monkeypatch.setattr(main, "settings", replace(main.settings, pricing_deadline_seconds=0.2, server_price_lookups=True))
     import time
     started = time.monotonic()
     pricing = asyncio.run(main._fetch_prices([STATION], True))
@@ -135,3 +137,11 @@ def test_price_seed_round_trip_fills_missing_prices_only(tmp_path):
     fresh.remember_pricing(STATION, newer)
     assert fresh.import_price_seed(seed) == 0  # a newer local price wins
     assert fresh.pricing("s1").bands[0].price_per_kwh == 0.45
+
+
+def test_collector_mode_never_contacts_tesla(monkeypatch):
+    knowledge, provider = FakeKnowledge(None), FakeProvider(FLAT)
+    monkeypatch.setattr(main, "charger_knowledge", knowledge)
+    monkeypatch.setattr(main, "price_provider", provider)
+    pricing = asyncio.run(main._fetch_prices([STATION], True))
+    assert provider.calls == 0 and pricing == {}  # no saved price: the estimate is used

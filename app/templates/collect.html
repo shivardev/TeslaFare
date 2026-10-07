@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TeslaFare · Price collector</title>
+  <link rel="stylesheet" href="/static/style.css?v=20261007-20">
+  <style>
+    main { max-width: 1100px; }
+    .collect-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+    .collect-head h1 { margin: 0; font-size: 22px; }
+    .collect-head p { margin: 6px 0 0; color: var(--soft); font-size: 13px; max-width: 640px; line-height: 1.5; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .stat { padding: 14px 16px; }
+    .stat b { display: block; font-size: 22px; }
+    .stat span { color: var(--muted); font-size: 12px; }
+    .stat.fresh b { color: #4ade80; } .stat.stale b { color: var(--amber); } .stat.missing b { color: #ff6b6f; }
+    .setup { padding: 16px 20px; font-size: 13px; line-height: 1.6; color: var(--soft); }
+    .setup ol { margin: 6px 0 0; padding-left: 20px; }
+    .setup code { padding: 1px 6px; border-radius: 4px; background: #17181c; color: var(--text); }
+    .setup a { color: var(--text); }
+    .queue { padding: 8px 20px 16px; }
+    .queue table td { vertical-align: middle; }
+    .queue tr.done td { opacity: .45; }
+    .queue tr.opened td { background: #12140f; }
+    .tag { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #1a1c21; color: var(--soft); }
+    .tag.missing, .tag.failed { background: #2a0d0f; color: #ff6b6f; }
+    .tag.stale { background: #2a1f0a; color: var(--amber); }
+    .tag.route { background: #0d2a18; color: #4ade80; }
+    .warn-box { padding: 12px 16px; border-left: 3px solid var(--amber); }
+    @media (max-width: 760px) { .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="collect-head">
+      <div>
+        <h1>Price collector</h1>
+        <p>Open a station on Tesla's site and the TeslaFare userscript saves the price it shows you. Stations on recently planned routes come first. A price stays fresh for <b id="fresh-hours">24</b> hours, then returns to this list.</p>
+      </div>
+      <button id="open-next" class="primary-btn" type="button">Open next station</button>
+    </div>
+    <div id="disabled" class="panel warn-box" hidden>Collection is off on this server. Set <code>COLLECTOR_KEY</code> (any long secret) and restart.</div>
+    <div class="stat-row">
+      <div class="panel stat fresh"><b id="c-fresh">–</b><span>Fresh prices</span></div>
+      <div class="panel stat stale"><b id="c-stale">–</b><span>Older than the fresh window</span></div>
+      <div class="panel stat missing"><b id="c-missing">–</b><span>No price yet</span></div>
+      <div class="panel stat"><b id="c-total">–</b><span>Stations covered</span></div>
+    </div>
+    <details class="panel setup">
+      <summary><b>One-time setup</b></summary>
+      <ol>
+        <li>Install <b>Tampermonkey</b> or <b>Violentmonkey</b> in the browser you'll collect with.</li>
+        <li>Install the userscript: <a href="/collector.user.js">collector.user.js</a> (your manager offers to install it).</li>
+        <li>Open any station below. The first time, the script asks for your collector key, the <code>COLLECTOR_KEY</code> value on this server.</li>
+        <li>A green "TeslaFare: saved…" note appears on Tesla's page when a price is saved, and the station leaves this list.</li>
+      </ol>
+    </details>
+    <section class="panel queue">
+      <div class="table-wrap"><table>
+        <thead><tr><th>#</th><th>Station</th><th>Why</th><th>Last price</th><th></th></tr></thead>
+        <tbody id="queue-body"><tr><td colspan="5">Loading…</td></tr></tbody>
+      </table></div>
+    </section>
+  </main>
+  <script>
+    const TAB = 'teslafare-collector';
+    const opened = new Set();
+    let items = [];
+    const esc = s => String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    const age = h => h == null ? '—' : h < 48 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`;
+    function open(item) {
+      opened.add(item.station_id);
+      window.open(item.tesla_url, TAB);
+      render();
+    }
+    function render() {
+      const body = document.getElementById('queue-body');
+      if (!items.length) { body.innerHTML = '<tr><td colspan="5">Every station has a fresh price. 🎉</td></tr>'; return; }
+      body.innerHTML = items.map((item, i) => `
+        <tr class="${opened.has(item.station_id) ? 'opened' : ''}">
+          <td>${i + 1}</td>
+          <td><b>${esc(item.name)}</b><small style="display:block;color:var(--muted)">${esc(item.address)}</small></td>
+          <td>${item.on_recent_route ? '<span class="tag route">On a planned route</span> ' : ''}<span class="tag ${item.status}">${item.status === 'stale' ? 'Old price' : item.status === 'failed' ? 'Last try failed' : 'No price'}</span></td>
+          <td>${age(item.age_hours)}</td>
+          <td><button class="ghost-btn" type="button" data-i="${i}">${opened.has(item.station_id) ? 'Waiting…' : 'Open on Tesla'}</button></td>
+        </tr>`).join('');
+    }
+    async function refresh() {
+      try {
+        const data = await (await fetch('/api/collector/queue?limit=60', {cache: 'no-store'})).json();
+        items = data.items;
+        for (const id of [...opened]) if (!items.some(item => item.station_id === id)) opened.delete(id);
+        document.getElementById('fresh-hours').textContent = data.fresh_hours;
+        document.getElementById('disabled').hidden = data.collector_enabled;
+        for (const k of ['fresh', 'stale', 'missing', 'total']) document.getElementById('c-' + k).textContent = data.counts[k].toLocaleString();
+        render();
+      } catch (_) { /* try again on the next tick */ }
+    }
+    document.getElementById('queue-body').addEventListener('click', event => {
+      const button = event.target.closest('button[data-i]');
+      if (button) open(items[Number(button.dataset.i)]);
+    });
+    document.getElementById('open-next').addEventListener('click', () => {
+      const next = items.find(item => !opened.has(item.station_id)) || items[0];
+      if (next) open(next);
+    });
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

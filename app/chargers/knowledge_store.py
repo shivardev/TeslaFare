@@ -87,6 +87,20 @@ class ChargerKnowledgeStore:
         except (TypeError, ValueError):
             return None
 
+    def all_pricing(self) -> dict[str, PricingSchedule]:
+        """Every saved price in one file read (pricing() re-reads the file per station)."""
+        with self._lock:
+            chargers = self._read_unlocked()["chargers"]
+        result = {}
+        for location_id, record in chargers.items():
+            pricing = record.get("pricing") if isinstance(record, dict) else None
+            if isinstance(pricing, dict):
+                try:
+                    result[location_id] = PricingSchedule.model_validate(pricing)
+                except (TypeError, ValueError):
+                    pass
+        return result
+
     def export_price_seed(self, seed_path: Path) -> int:
         """Write every Tesla-sourced price (not failures, manual entries or replay rates) to a small file for git."""
         with self._lock:

@@ -29,6 +29,7 @@ class Charger(BaseModel):
     name: str
     coordinate: Coordinate
     address: str = ""
+    country: str = ""
     status: str = "OPEN"
     stalls: int | None = None
     power_kw: int | None = None

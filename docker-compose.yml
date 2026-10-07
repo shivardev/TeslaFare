@@ -14,6 +14,11 @@ services:
     shm_size: "1gb"
     environment:
       TZ: ${TZ:-America/New_York}
+      # Prices come from your browser via /collect; set a long random COLLECTOR_KEY to turn it on.
+      COLLECTOR_KEY: ${COLLECTOR_KEY:-}
+      PRICE_FRESH_HOURS: ${PRICE_FRESH_HOURS:-24}
+      # Server-side lookups through headless Firefox are off unless you set this to true.
+      SERVER_PRICE_LOOKUPS: ${SERVER_PRICE_LOOKUPS:-false}
       TESLA_PLAYWRIGHT_HEADLESS: "true"
       TESLA_PLAYWRIGHT_FALLBACK: ${TESLA_PLAYWRIGHT_FALLBACK:-true}
       TESLA_PLAYWRIGHT_MAX_FALLBACKS: ${TESLA_PLAYWRIGHT_MAX_FALLBACKS:-40}

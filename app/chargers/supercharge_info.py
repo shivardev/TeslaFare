@@ -165,6 +165,7 @@ class SuperchargeInfoProvider:
                     name=str(raw.get("name") or location_id),
                     coordinate=Coordinate(lat=float(lat), lon=float(lon)),
                     address=address_text,
+                    country=str(address.get("country") or ""),
                     status=status,
                     stalls=raw.get("stallCount"),
                     power_kw=raw.get("powerKilowatt"),

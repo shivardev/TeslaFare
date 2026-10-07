@@ -22,7 +22,22 @@ const SAVED_TRIP_KEY = 'teslafare.lastTrip.v1';
 const DWELL_OPTIONS = [[0, 'Pass through'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours'], [180, '3 hours'], [240, '4 hours'], [480, '8 hours'], [600, 'Overnight (10 h)']];
 const stopLetter = index => String.fromCharCode(66 + index);  // A is the origin
 
-const STATUS_LABELS = {verified:'Live', cached:'Cached', historical:'Historical', manual:'Manual', estimated:'Estimated', unknown:'Unknown', fetching:'Fetching', excluded:'Excluded'};
+// Prices this visitor typed in: kept only in this browser and sent with their own trips.
+const MY_PRICES_KEY = 'teslafare.myPrices';
+function myPrices() {
+  try { return JSON.parse(localStorage.getItem(MY_PRICES_KEY) || '{}') || {}; } catch (_) { return {}; }
+}
+function setMyPrice(stationId, price) {
+  const prices = myPrices();
+  if (price == null) delete prices[stationId]; else prices[stationId] = {price, at: Date.now()};
+  try { localStorage.setItem(MY_PRICES_KEY, JSON.stringify(prices)); } catch (_) { /* private mode: this trip only */ }
+  return prices;
+}
+function myPricesPayload(prices = myPrices()) {
+  // Newest first; the server accepts up to 200.
+  return Object.fromEntries(Object.entries(prices).sort((a, b) => b[1].at - a[1].at).slice(0, 200).map(([id, v]) => [id, v.price]));
+}
+const STATUS_LABELS = {verified:'Live', cached:'Cached', historical:'Historical', manual:'Entered by you', estimated:'Estimated', unknown:'Unknown', fetching:'Fetching', excluded:'Excluded'};
 const CATEGORY_LABELS = {'CHEAPEST':'Lowest cost', 'CHEAP + FAST':'Cheap + fast', 'BALANCED':'Balanced', 'FASTEST REASONABLE':'Fastest', 'MOST EXPENSIVE REASONABLE':'Highest cost', 'WHAT IF':'What-if'};
 const icon = (id, cls = 'ico') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 const boltIcon = `<svg><use href="#i-bolt"/></svg>`;
@@ -161,6 +176,11 @@ function priceScheduleHtml(schedule, status, atIso) {
     return `<tr${active}><td>${clockFromMinute(band.start_minute)}–${clockFromMinute(band.end_minute)}${days}</td><td>$${band.price_per_kwh.toFixed(2)}</td></tr>`;
   }).join('');
   return `<div class="popup-price">Time-of-use pricing${note}</div><table class="popup-bands">${rows}</table>`;
+}
+function priceAge(iso) {
+  const hours = (Date.now() - new Date(iso).getTime()) / 3600000;
+  if (!Number.isFinite(hours)) return '';
+  return hours < 1 ? 'in the last hour' : hours < 48 ? `${Math.round(hours)} h ago` : `${Math.round(hours / 24)} days ago`;
 }
 function priceRange(schedule) {
   if (!schedule?.bands?.length) return null;
@@ -688,6 +708,7 @@ function stationDetailHtml(c, stop, info) {
       <div class="detail-col">
         <h4>Price schedule</h4>
         ${priceScheduleHtml(c.pricing, c.pricing_status, stop?.arrival_time || e?.pass_time)}
+        ${c.pricing?.fetched_at ? `<p class="muted small">Price checked ${priceAge(c.pricing.fetched_at)}</p>` : ''}
         <p class="muted small">${esc(c.address)}${c.tesla_url ? ` · <a href="${esc(c.tesla_url)}" target="_blank" rel="noopener">Tesla page</a>` : ''}</p>
       </div>
     </div>`;
@@ -707,8 +728,11 @@ function renderStations() {
     const e = explanations[c.station_id];
     const status = c.user_excluded ? 'excluded' : c.pricing_status;
     const now = stop ? stop.price_per_kwh : e?.price_at_pass;
-    const manual = c.pricing_status === 'unknown' && !c.user_excluded
-      ? `<div class="manual-price"><input type="number" min="0.01" max="2" step="0.001" placeholder="$ / kWh" aria-label="Manual price for ${esc(c.station_name)}"><button type="button" data-station-id="${esc(c.station_id)}">Save</button></div>` : '';
+    const mine = myPrices()[c.station_id];
+    const needsPrice = !mine && !c.user_excluded && (c.pricing_status === 'unknown' || c.pricing_status === 'estimated');
+    const manual = needsPrice
+      ? `<div class="my-price">${c.tesla_url ? `<a href="${esc(c.tesla_url)}" target="_blank" rel="noopener">Check on Tesla ↗</a>` : ''}<span><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span></div>`
+      : mine ? `<b class="price-now">$${Number(mine.price).toFixed(2)}</b><small>Yours · <button type="button" class="link-btn" data-clear-price="${esc(c.station_id)}">clear</button></small>` : '';
     const priceCell = manual || `<b class="price-now">${now != null ? `$${now.toFixed(2)}` : (priceRange(c.pricing) || '—')}</b><small>${esc(STATUS_LABELS[status] || status)}${now != null && c.pricing?.kind === 'time_of_use' ? ` · ${priceRange(c.pricing)}` : ''}</small>`;
     const open = c.station_id === openStation ? ' open' : '';
     const pinned = c.station_id === pinnedStation ? ' pinned' : '';
@@ -727,7 +751,7 @@ function renderStations() {
   const chip = (key, text) => `<button type="button" class="seg ${stationFilter === key ? 'on' : ''}" data-filter="${key}">${text}</button>`;
   section.innerHTML = `
     <div class="section-head">
-      <div><h2 class="kicker">Charging stations along your route</h2><p>Hover a row for details, or click to keep it open. Uncheck stations you don't want, then recalculate.</p></div>
+      <div><h2 class="kicker">Charging stations along your route</h2><p>Hover a row for details, or click to keep it open. Uncheck stations you don't want, then recalculate. Missing a price? Check it on Tesla and enter it. It's only used for your trips and stays in this browser.</p></div>
       <div class="station-meta">
         <div class="found-count"><div><i class="dot"></i>${all.length} nearby chargers found <span class="sepbar">|</span> ${priced} of ${all.length} prices retrieved</div><div class="bar-track"><span style="width:${Math.round(priced / all.length * 100)}%"></span></div></div>
         <div class="segmented">${chip('all', `All ${all.length}`)}${chip('plan', `In plan ${inPlan}`)}${chip('skipped', `Skipped ${all.length - inPlan}`)}</div>
@@ -911,31 +935,26 @@ async function runTrip(payload) {
   }
 }
 
-document.getElementById('stations').addEventListener('click', async event => {
-  const button = event.target.closest('button[data-station-id]');
-  if (!button) return;
-  const input = button.parentElement.querySelector('input');
-  const price = Number(input.value);
-  if (!Number.isFinite(price) || price < 0.01 || price > 2) {
-    input.setCustomValidity('Enter a price between $0.01 and $2.00 per kWh.');
-    input.reportValidity();
-    return;
+document.getElementById('stations').addEventListener('click', event => {
+  const use = event.target.closest('.my-price-btn');
+  const clear = event.target.closest('[data-clear-price]');
+  if (!use && !clear) return;
+  let prices;
+  if (use) {
+    const input = use.parentElement.querySelector('input');
+    const price = Number(input.value);
+    if (!Number.isFinite(price) || price < 0.01 || price > 2) {
+      input.setCustomValidity('Enter a price between $0.01 and $2.00 per kWh.');
+      input.reportValidity();
+      return;
+    }
+    input.setCustomValidity('');
+    use.disabled = true;
+    prices = setMyPrice(use.dataset.myPrice, price);
+  } else {
+    prices = setMyPrice(clear.dataset.clearPrice, null);
   }
-  input.setCustomValidity('');
-  button.disabled = true;
-  button.textContent = 'Saving…';
-  try {
-    const response = await fetch(`/api/chargers/${encodeURIComponent(button.dataset.stationId)}/manual-price`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({price_per_kwh:price})
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || 'Could not save price');
-    await runTrip(lastRequest);
-  } catch (error) {
-    button.disabled = false;
-    button.textContent = 'Save';
-    window.alert(error.message);
-  }
+  runTrip({...lastRequest, price_overrides: myPricesPayload(prices)});
 });
 
 document.getElementById('trip-form').addEventListener('submit', event => {
@@ -956,7 +975,8 @@ document.getElementById('trip-form').addEventListener('submit', event => {
     desired_departure_time:document.getElementById('desired-departure').value || null,
     departure_window_hours:12,
     replay_scenario:replayScenario,
-    excluded_station_ids: []
+    excluded_station_ids: [],
+    price_overrides: myPricesPayload()
   };
   saveLastTrip(request);
   runTrip(request);

@@ -463,3 +463,11 @@ tr.detail-row.open .detail-wrap { grid-template-rows: 1fr; }
 .progress-right { display: inline-flex; align-items: center; gap: 14px; }
 #skip-pricing { margin-left: 0; color: var(--amber); }
 #skip-pricing:disabled { opacity: .5; cursor: default; }
+
+.my-price { display: grid; gap: 4px; }
+.my-price a { color: var(--amber); font-size: 12px; text-decoration: none; }
+.my-price a:hover { text-decoration: underline; }
+.my-price span { display: flex; gap: 6px; }
+.my-price input { width: 74px; height: 28px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 5px; background: #050506; color: var(--text); font: 13px inherit; }
+.my-price button { height: 28px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 5px; background: #17181c; color: var(--text); font: 600 12px inherit; cursor: pointer; }
+.stations-table small .link-btn { margin: 0; font-size: 11px; }

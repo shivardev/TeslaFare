@@ -262,6 +262,8 @@ docker compose exec -u root tesla-route-planner chown app:app /data/supercharger
 docker compose restart
 ```
 
+**Collecting prices.** The server doesn't contact Tesla by default. Prices come from your own browser: set `COLLECTOR_KEY` (any long random secret) on the server, open `http://<server>:8000/collect`, install the userscript linked there in Tampermonkey or Violentmonkey, and click **Open next station**. When Tesla's page loads a station, the script sends the price Tesla shows you to the server, and the station leaves the queue. Stations on recently planned routes come first; a price is re-queued after `PRICE_FRESH_HOURS` (default 24) but stays in use until replaced. `SERVER_PRICE_LOOKUPS=true` turns the old headless-Firefox lookups back on.
+
 Known prices also ship in git: `app/data/price_seed.json` is merged into the local store at startup (a newer local price always wins), so a fresh clone or image starts with every price collected so far. Refresh it from your own saved prices with `uv run python -m app.tools.export_prices` and commit the file. Requests to tesla.com are capped with `LIVE_PRICE_LOOKUPS_PER_HOUR` (default 30) so public traffic can't trigger Tesla's bot protection; anything over the cap uses saved prices or the planning estimate.
 
 The first trip on an empty volume takes a minute or two while prices are fetched through Firefox; later trips reuse saved prices. Settings in `docker-compose.yml` can be overridden from the shell or a `.env` file next to it (for example `MAX_CANDIDATE_CHARGERS=30`). There is no login: keep the port on a trusted network or put an authenticating reverse proxy in front of it.

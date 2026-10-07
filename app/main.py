@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 import math
 import time
@@ -13,7 +14,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, model_validator
@@ -31,7 +32,9 @@ from app.optimizer.graph import GraphWaypoint, build_graph, graph_layout
 from app.optimizer.explain import ChargerExplanation, explain_plan
 from app.optimizer.graph import GraphContext
 from app.optimizer.search import OptimizerConfig, choose_useful_plans, optimize_departure
-from app.pricing.tesla import LiveLookupUnavailable, TeslaPriceProvider
+from app.pricing.collector import collection_queue, identify_station
+from app.pricing.refresher import PriceRefresher
+from app.pricing.tesla import LiveLookupUnavailable, TeslaPriceProvider, parse_tesla_pricing_payload
 from app.routing.osrm import OSRMRouteProvider
 from app.timezones import TimeApiTimezoneProvider
 from app.vehicle.charging import ChargingModel
@@ -74,6 +77,15 @@ price_provider = TeslaPriceProvider(
     settings.tesla_browser_backend,
 )
 price_provider.requests_per_hour = settings.live_price_lookups_per_hour
+price_refresher = PriceRefresher(
+    price_provider,
+    charger_knowledge,
+    lambda: chargers_provider.all_open(),
+    per_hour=settings.price_refresh_per_hour,
+    stale_after=timedelta(days=settings.price_refresh_stale_days),
+    countries={c.strip() for c in settings.price_refresh_countries.split(",") if c.strip()},
+    visitor_reserve=settings.price_refresh_visitor_reserve,
+)
 _seeded = charger_knowledge.import_price_seed(settings.price_seed_path)
 if _seeded:
     log.info("Loaded %d saved Supercharger prices from %s", _seeded, settings.price_seed_path)
@@ -92,7 +104,12 @@ optimizer_cfg = OptimizerConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    refresh_task = None
+    if settings.server_price_lookups and settings.price_refresh_per_hour > 0 and settings.tesla_playwright_fallback:
+        refresh_task = asyncio.create_task(price_refresher.run())
     yield
+    if refresh_task is not None:
+        refresh_task.cancel()
     await price_provider.close()
 
 
@@ -158,6 +175,8 @@ class TripRequest(BaseModel):
     to_location: str = Field(min_length=2, max_length=200)
     # Intermediate stops, visited strictly in the order given.
     stops: list[StopRequest] = Field(default_factory=list, max_length=8)
+    # Prices the visitor typed in ($/kWh by station id). Used for this trip only; never stored on the server.
+    price_overrides: dict[str, float] = Field(default_factory=dict, max_length=200)
     fallback_price_per_kwh: float | None = Field(default=0.40, ge=0.01, le=2.0)
     excluded_station_ids: list[str] = Field(default_factory=list, max_length=100)
     use_charger_cache: bool = True
@@ -172,6 +191,13 @@ class TripRequest(BaseModel):
     custom_battery_usable_kwh: float | None = Field(default=None, ge=20.0, le=200.0)
     custom_highway_wh_per_mile: float | None = Field(default=None, ge=100.0, le=1000.0)
     custom_peak_charge_kw: float | None = Field(default=None, ge=20.0, le=400.0)
+
+    @model_validator(mode="after")
+    def validate_price_overrides(self):
+        for station_id, price in self.price_overrides.items():
+            if len(station_id) > 120 or not 0.01 <= price <= 2.0:
+                raise ValueError("Entered prices must be between $0.01 and $2.00 per kWh")
+        return self
 
     @model_validator(mode="after")
     def validate_vehicle(self):
@@ -191,6 +217,12 @@ class ExplainRequest(BaseModel):
 class WhatIfRequest(BaseModel):
     plan: TripPlan
     station_id: str = Field(min_length=1, max_length=120)
+
+
+class CollectedPriceRequest(BaseModel):
+    page_url: str = Field(default="", max_length=2000)
+    request_url: str = Field(default="", max_length=4000)
+    payload: dict
 
 
 class ManualPriceRequest(BaseModel):
@@ -260,6 +292,8 @@ async def _fill_timezones(candidates: list[Charger]) -> None:
 
 
 USABLE_PRICE_KINDS = {"flat", "time_of_use"}
+# Starts with "User-entered" so it is treated as a manual price everywhere.
+VISITOR_PRICE_NOTE = "User-entered for this trip only; not shared"
 
 
 # progress_id -> event set when the user asks to stop waiting for live prices.
@@ -290,6 +324,9 @@ async def _fetch_prices(
             # Real prices are reused; a failure is retried, but not again within the retry window.
             if use_charger_cache and (saved_usable or _recent_failure(saved)):
                 return charger, saved, "cached"
+            if not settings.server_price_lookups:
+                # Collector mode: prices only come from the host's browser, never from the server.
+                return charger, saved if saved_usable else None, "saved"
             try:
                 schedule = await price_provider.get_prices(charger, force_refresh=not use_charger_cache)
             except LiveLookupUnavailable:
@@ -415,8 +452,78 @@ async def skip_pricing(progress_id: str):
     return {"ok": event is not None}
 
 
+def _require_collector_key(key: str | None) -> None:
+    if not settings.collector_key:
+        raise HTTPException(status_code=503, detail="Price collection is off: set COLLECTOR_KEY on the server.")
+    if not key or not hmac.compare_digest(key, settings.collector_key):
+        raise HTTPException(status_code=401, detail="Wrong collector key.")
+
+
+async def _catalog_by_id() -> dict[str, Charger]:
+    return {c.location_id: c for c in await chargers_provider.all_open()}
+
+
+@app.post("/api/collector/price")
+async def collect_price(req: CollectedPriceRequest, request: Request):
+    """Price data captured by the host's userscript from a Tesla Find Us page they opened."""
+    _require_collector_key(request.headers.get("X-Collector-Key"))
+    station = identify_station(req.page_url, req.request_url, req.payload, await _catalog_by_id())
+    if station is None:
+        raise HTTPException(status_code=404, detail="Couldn't tell which station this is; open it from the /collect page.")
+    schedule = parse_tesla_pricing_payload(req.payload, findus_url_for(station))
+    if schedule.kind not in USABLE_PRICE_KINDS:
+        raise HTTPException(status_code=422, detail=f"No Tesla price found for {station.name} in that data.")
+    schedule.fetched_at = datetime.now(timezone.utc)
+    charger_knowledge.remember_pricing(station, schedule)
+    prices = sorted({band.price_per_kwh for band in schedule.bands})
+    summary = f"${prices[0]:.2f}/kWh" if len(prices) == 1 else f"${prices[0]:.2f}\u2013{prices[-1]:.2f}/kWh"
+    log.info("Collected price for %s: %s", station.name, summary)
+    return {"ok": True, "station_id": station.location_id, "station_name": station.name, "kind": schedule.kind, "summary": summary}
+
+
+def findus_url_for(station: Charger) -> str:
+    return station.tesla_url or f"https://www.tesla.com/findus?location={station.location_id}"
+
+
+@app.get("/api/collector/queue")
+async def price_queue(limit: int = 60):
+    items, counts = collection_queue(
+        await chargers_provider.all_open(),
+        charger_knowledge.all_pricing(),
+        price_refresher.recent_trip_ids(),
+        datetime.now(timezone.utc),
+        timedelta(hours=settings.price_fresh_hours),
+        {c.strip() for c in settings.price_refresh_countries.split(",") if c.strip()},
+    )
+    return {
+        "items": items[: max(1, min(limit, 200))],
+        "counts": counts,
+        "fresh_hours": settings.price_fresh_hours,
+        "collector_enabled": bool(settings.collector_key),
+    }
+
+
+@app.get("/collect", response_class=HTMLResponse)
+async def collect_page(request: Request):
+    return templates.TemplateResponse(request=request, name="collect.html", headers={"Cache-Control": "no-store, max-age=0"})
+
+
+@app.get("/collector.user.js", response_class=PlainTextResponse)
+async def collector_userscript(request: Request):
+    server = str(request.base_url).rstrip("/")
+    host = request.url.hostname or "localhost"
+    script = (BASE_DIR / "static" / "collector.user.js").read_text(encoding="utf-8")
+    return PlainTextResponse(
+        script.replace("__SERVER__", server).replace("__HOST__", host),
+        media_type="text/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
 @app.post("/api/chargers/{location_id}/manual-price")
 async def save_manual_price(location_id: str, req: ManualPriceRequest):
+    if not settings.allow_shared_manual_prices:
+        raise HTTPException(status_code=403, detail="Shared manual prices are turned off on this server.")
     schedule = PricingSchedule(
         kind="flat",
         bands=[{"start_minute": 0, "end_minute": 0, "price_per_kwh": req.price_per_kwh}],
@@ -534,7 +641,16 @@ async def trip(req: TripRequest) -> TripResponse:
             } for charger in discovered_candidates],
         )
 
+        price_refresher.note_trip_stations([c.location_id for c in candidates])
         pricing = await _fetch_prices(candidates, req.use_charger_cache, req.progress_id)
+        for charger in candidates:
+            entered = req.price_overrides.get(charger.location_id)
+            if entered is not None:
+                pricing[charger.location_id] = PricingSchedule(
+                    kind="flat",
+                    bands=[{"start_minute": 0, "end_minute": 0, "price_per_kwh": entered}],
+                    note=VISITOR_PRICE_NOTE,
+                )
         not_checked = [c for c in candidates if c.location_id not in pricing]
         replay = REPLAY_TRIPS.get(req.replay_scenario) if req.replay_scenario else None
         if replay:
@@ -619,6 +735,8 @@ async def trip(req: TripRequest) -> TripResponse:
             )
         if not_checked:
             warnings.append(
+                f"{len(not_checked)} station(s) don't have a collected price yet, so they use your planning estimate."
+                if not settings.server_price_lookups else
                 f"Live prices for {len(not_checked)} station(s) weren't looked up this time, so they use your planning "
                 "estimate. They're looked up again on the next trip."
             )

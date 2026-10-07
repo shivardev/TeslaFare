@@ -221,6 +221,11 @@ class TeslaPriceProvider(PriceProvider):
         return True
 
     @property
+    def requests_in_last_hour(self) -> int:
+        now = time.monotonic()
+        return len([t for t in self._recent_requests if now - t < 3600])
+
+    @property
     def rate_limited(self) -> bool:
         now = time.monotonic()
         return len([t for t in self._recent_requests if now - t < 3600]) >= self.requests_per_hour
