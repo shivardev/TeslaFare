@@ -21,6 +21,12 @@ services:
       REPO_URL: ${REPO_URL:-https://github.com/shivardev/TeslaFare.git}
       REPO_BRANCH: ${REPO_BRANCH:-main}
       PUBLIC_URL: ${PUBLIC_URL:-}
+      # Real visitor IP when behind Cloudflare/a proxy (e.g. CF-Connecting-IP); used by the price guardrails.
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
+      COMMUNITY_PRICES: ${COMMUNITY_PRICES:-true}
+      CONTRIBUTOR_KEYS: ${CONTRIBUTOR_KEYS:-}
+      CENTRAL_PRICE_URL: ${CENTRAL_PRICE_URL-https://teslaflare.blazingbane.com}
+      CENTRAL_CONTRIBUTOR_KEY: ${CENTRAL_CONTRIBUTOR_KEY:-}
       # Prices come from your browser via /collect; set a long random COLLECTOR_KEY to turn it on.
       COLLECTOR_KEY: ${COLLECTOR_KEY:-}
       PRICE_FRESH_HOURS: ${PRICE_FRESH_HOURS:-24}
