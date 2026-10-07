@@ -38,7 +38,7 @@
         <h1>Price collector</h1>
         <p>Open a station on Tesla's site and the TeslaFare userscript saves the price it shows you. Stations on recently planned routes come first. A price stays fresh for <b id="fresh-hours">24</b> hours, then returns to this list.</p>
       </div>
-      <button id="open-next" class="primary-btn" type="button">Open next station</button>
+      <a id="open-next" class="primary-btn" href="#" target="teslafare-collector">Open next station</a>
     </div>
     <div id="disabled" class="panel warn-box" hidden>Collection is off on this server. Set <code>COLLECTOR_KEY</code> (any long secret) and restart.</div>
     <div class="stat-row">
@@ -69,13 +69,17 @@
     let items = [];
     const esc = s => String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     const age = h => h == null ? '—' : h < 48 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`;
-    function open(item) {
-      opened.add(item.station_id);
-      window.open(item.tesla_url, TAB);
-      render();
+    // Plain links (not window.open) so popup blockers never stop them; they all reuse one named tab.
+    function nextItem() { return items.find(item => !opened.has(item.station_id)) || items[0]; }
+    function markOpened(id) { opened.add(id); setTimeout(render, 0); }
+    function updateNext() {
+      const next = nextItem(), link = document.getElementById('open-next');
+      link.href = next ? next.tesla_url : '#';
+      link.dataset.id = next ? next.station_id : '';
     }
     function render() {
       const body = document.getElementById('queue-body');
+      updateNext();
       if (!items.length) { body.innerHTML = '<tr><td colspan="5">Every station has a fresh price. 🎉</td></tr>'; return; }
       body.innerHTML = items.map((item, i) => `
         <tr class="${opened.has(item.station_id) ? 'opened' : ''}">
@@ -83,7 +87,7 @@
           <td><b>${esc(item.name)}</b><small style="display:block;color:var(--muted)">${esc(item.address)}</small></td>
           <td>${item.on_recent_route ? '<span class="tag route">On a planned route</span> ' : ''}<span class="tag ${item.status}">${item.status === 'stale' ? 'Old price' : item.status === 'failed' ? 'Last try failed' : 'No price'}</span></td>
           <td>${age(item.age_hours)}</td>
-          <td><button class="ghost-btn" type="button" data-i="${i}">${opened.has(item.station_id) ? 'Waiting…' : 'Open on Tesla'}</button></td>
+          <td><a class="ghost-btn" href="${esc(item.tesla_url)}" target="${TAB}" data-id="${esc(item.station_id)}">${opened.has(item.station_id) ? 'Opened · waiting' : 'Open on Tesla'}</a></td>
         </tr>`).join('');
     }
     async function refresh() {
@@ -98,12 +102,12 @@
       } catch (_) { /* try again on the next tick */ }
     }
     document.getElementById('queue-body').addEventListener('click', event => {
-      const button = event.target.closest('button[data-i]');
-      if (button) open(items[Number(button.dataset.i)]);
+      const link = event.target.closest('a[data-id]');
+      if (link) markOpened(link.dataset.id);
     });
-    document.getElementById('open-next').addEventListener('click', () => {
-      const next = items.find(item => !opened.has(item.station_id)) || items[0];
-      if (next) open(next);
+    document.getElementById('open-next').addEventListener('click', event => {
+      if (!event.currentTarget.dataset.id) { event.preventDefault(); return; }
+      markOpened(event.currentTarget.dataset.id);
     });
     refresh();
     setInterval(refresh, 5000);
