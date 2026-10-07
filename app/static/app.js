@@ -146,19 +146,23 @@ function renderMissing(status) {
   if (!missing.length) { section.innerHTML = ''; return; }
   const estimate = Number(lastRequest?.fallback_price_per_kwh ?? 0.4).toFixed(2);
   const next = missing.filter(c => !waitingFor.has(c.station_id)).slice(0, 5);
-  const helperHtml = helperVersion
-    ? `<div class="missing-actions">
-         <button id="fetch-missing" class="primary-btn" type="button" ${next.length ? '' : 'disabled'}>Fetch ${next.length === missing.length ? 'missing prices' : `next ${next.length}`} automatically</button>
-         <span class="muted">Opens Tesla tabs that read the price and close themselves. Your plan updates on its own.</span>
-       </div>`
-    : `<details class="helper-setup"><summary><b>Get these prices automatically (1-minute setup)</b></summary>
+  // The batch button is always offered: with the helper on Tesla's pages each tab captures its price and
+  // closes, and the planner picks the prices up on its own (helper bridge or server price watch).
+  const batchLabel = next.length === missing.length && next.length <= 5 ? `Open ${next.length === 1 ? 'it' : `all ${next.length}`} on Tesla` : `Open next ${next.length} on Tesla`;
+  const actionsHtml = `<div class="missing-actions">
+       <button id="fetch-missing" class="primary-btn" type="button" ${next.length ? '' : 'disabled'}>${batchLabel}</button>
+       <span class="muted">${helperVersion
+         ? 'Each tab reads the price and closes itself; your plan updates on its own.'
+         : 'With the TeslaFare helper installed, each tab reads the price and closes itself and your plan updates on its own. Without it, the tabs just open so you can check prices.'}</span>
+     </div>`;
+  const helperHtml = actionsHtml + (helperVersion ? '' : `<details class="helper-setup"><summary><b>Get these prices automatically (1-minute setup)</b></summary>
          <ol>
            <li>Install <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> for your browser.</li>
            <li>Install the <a href="/collector.user.js" target="_blank">TeslaFare price helper</a> (Tampermonkey shows an Install button).</li>
-           <li>Reload this page and plan again. A <b>Fetch missing prices</b> button appears here.</li>
+           <li>Reload this page and plan again.</li>
          </ol>
          <p class="muted">The helper only reads the price Tesla's site shows you, in your own browser, and passes it to this page. Prices it captures are used for your trips and aren't shared.</p>
-       </details>`;
+       </details>`);
   const rows = missing.map(c => `
     <li>
       <span><b>${esc(stationName(c.station_name))}</b><small>${esc(cityState(c.address) || '')}${waitingFor.has(c.station_id) ? ' · waiting for Tesla tab…' : ''}</small></span>
