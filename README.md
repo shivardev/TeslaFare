@@ -237,7 +237,7 @@ Trip inputs are necessarily sent to the configured geocoding and routing provide
 
 ### Docker (recommended)
 
-The image bundles the app, headless Firefox and geckodriver (needed because Tesla's public price pages reject plain HTTP requests).
+The image contains only the app (no browser): prices come from visitors' browsers through the TeslaFare helper. Server-side Tesla lookups (`SERVER_PRICE_LOOKUPS=true`) need Firefox plus `uv sync --extra browser`, which this image deliberately leaves out.
 
 ```bash
 git clone <this repo> && cd Tesla-Route-Planner

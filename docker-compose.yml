@@ -12,8 +12,6 @@ services:
       - tesla-data:/data
       # The container's own git clone; updated on every start when AUTO_UPDATE is true.
       - tesla-code:/src
-    # Firefox needs more shared memory than Docker's 64 MB default.
-    shm_size: "1gb"
     environment:
       TZ: ${TZ:-America/New_York}
       # On every start: pull this repo/branch and run the latest code (falls back to the last good copy).
@@ -27,15 +25,10 @@ services:
       CONTRIBUTOR_KEYS: ${CONTRIBUTOR_KEYS:-}
       CENTRAL_PRICE_URL: ${CENTRAL_PRICE_URL-https://teslaflare.blazingbane.com}
       CENTRAL_CONTRIBUTOR_KEY: ${CENTRAL_CONTRIBUTOR_KEY:-}
-      # Prices come from your browser via /collect; set a long random COLLECTOR_KEY to turn it on.
+      # Optional admin key (not required unless REQUIRE_COLLECTOR_KEY=true).
       COLLECTOR_KEY: ${COLLECTOR_KEY:-}
+      REQUIRE_COLLECTOR_KEY: ${REQUIRE_COLLECTOR_KEY:-false}
       PRICE_FRESH_HOURS: ${PRICE_FRESH_HOURS:-24}
-      # Server-side lookups through headless Firefox are off unless you set this to true.
-      SERVER_PRICE_LOOKUPS: ${SERVER_PRICE_LOOKUPS:-false}
-      TESLA_PLAYWRIGHT_HEADLESS: "true"
-      TESLA_PLAYWRIGHT_FALLBACK: ${TESLA_PLAYWRIGHT_FALLBACK:-true}
-      TESLA_PLAYWRIGHT_MAX_FALLBACKS: ${TESLA_PLAYWRIGHT_MAX_FALLBACKS:-40}
-      PRICING_CACHE_HOURS: ${PRICING_CACHE_HOURS:-6}
       CORRIDOR_MILES: ${CORRIDOR_MILES:-50}
       MAX_CANDIDATE_CHARGERS: ${MAX_CANDIDATE_CHARGERS:-24}
       MAX_CHARGER_DETOUR_MINUTES: ${MAX_CHARGER_DETOUR_MINUTES:-15}

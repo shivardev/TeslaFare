@@ -1,21 +1,10 @@
-# TeslaFare: FastAPI app (+ optional headless Firefox for server-side Tesla lookups).
-# On every start the container can update itself from git: see docker/entrypoint.sh.
-FROM python:3.12-slim-bookworm
+# TeslaFare: FastAPI app. Prices come from visitors' browsers (the TeslaFare helper), so the image
+# has no browser. On every start the container can update itself from git: see docker/entrypoint.sh.
+FROM python:3.12-slim
 
-ARG TARGETARCH
-ARG GECKODRIVER_VERSION=0.37.1
-
-# Firefox ESR (Debian) + geckodriver, used by Selenium when Tesla blocks plain HTTP requests.
+# git: the container's self-update; tzdata: local times in logs.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends firefox-esr ca-certificates curl tzdata git \
- && case "${TARGETARCH:-amd64}" in \
-      amd64) GECKO_ARCH=linux64 ;; \
-      arm64) GECKO_ARCH=linux-aarch64 ;; \
-      *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
- && curl -fsSL "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz" \
-    | tar -xz -C /usr/local/bin geckodriver \
- && apt-get purge -y curl && apt-get autoremove -y \
+ && apt-get install -y --no-install-recommends git ca-certificates tzdata \
  && rm -rf /var/lib/apt/lists/*
 
 # Same uv version that wrote uv.lock.
@@ -30,14 +19,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Dependencies first so code changes don't reinstall them.
+# Dependencies first so code changes don't reinstall them. The optional "browser" extra
+# (Playwright/Selenium, for server-side Tesla lookups) is deliberately not installed.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
 COPY docker/entrypoint.sh /usr/local/bin/teslafare-entrypoint
 
-# Unprivileged user; /data holds the SQLite cache and the learned Supercharger prices.
+# Unprivileged user; /data holds the SQLite cache and the saved Supercharger prices, /src the git clone.
 RUN useradd --create-home --uid 1000 app \
  && mkdir -p /data /src \
  && chown app:app /data /src \
@@ -49,9 +39,7 @@ USER app
 ENV HOME=/home/app \
     CACHE_DB_PATH=/data/cache.sqlite3 \
     CHARGER_KNOWLEDGE_PATH=/data/superchargers.json \
-    TESLA_PLAYWRIGHT_HEADLESS=true \
-    TESLA_BROWSER_BACKEND=selenium \
-    TESLA_PLAYWRIGHT_BROWSER=firefox
+    SERVER_PRICE_LOOKUPS=false
 
 VOLUME ["/data"]
 EXPOSE 8000
