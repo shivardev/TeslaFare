@@ -242,6 +242,12 @@ class ManualPriceRequest(BaseModel):
     price_per_kwh: float = Field(ge=0.01, le=2.0)
 
 
+class SharedTripRequest(BaseModel):
+    trip: TripResponse
+    selected_plan: TripPlan
+    request: dict = Field(default_factory=dict)
+
+
 def _leg_candidates(all_chargers: list[Charger], legs: list[RouteSummary]) -> list[Charger]:
     """Corridor chargers per leg. Progress is global (leg index + position on that leg), so the
     same station can appear once per leg it serves, e.g. on an out-and-back trip."""
@@ -442,6 +448,42 @@ async def home(request: Request):
         },
         headers={"Cache-Control": "no-store, max-age=0"},
     )
+
+
+@app.get("/trip/{share_id}", response_class=HTMLResponse)
+async def shared_trip_page(request: Request, share_id: uuid.UUID):
+    return await home(request)
+
+
+@app.post("/api/shared-trips", status_code=201)
+async def create_shared_trip(payload: SharedTripRequest, request: Request):
+    share_id = str(uuid.uuid4())
+    allowed = {
+        "from_location", "to_location", "stops", "fallback_price_per_kwh", "starting_soc",
+        "min_charger_soc", "destination_soc", "vehicle_profile_id", "custom_battery_usable_kwh",
+        "custom_highway_wh_per_mile", "custom_peak_charge_kw", "desired_departure_time",
+        "departure_window_hours", "excluded_station_ids", "use_charger_cache",
+    }
+    snapshot = {
+        "trip": payload.trip.model_dump(mode="json"),
+        "selected_plan": payload.selected_plan.model_dump(mode="json"),
+        "request": {key: value for key, value in payload.request.items() if key in allowed},
+    }
+    expires_at = cache.create_trip_share(share_id, snapshot, settings.trip_share_days)
+    return {
+        "id": share_id,
+        "url": str(request.url_for("shared_trip_page", share_id=share_id)),
+        "expires_at": expires_at.isoformat(),
+    }
+
+
+@app.get("/api/shared-trips/{share_id}")
+async def get_shared_trip(share_id: uuid.UUID):
+    saved = cache.get_trip_share(str(share_id))
+    if saved is None:
+        raise HTTPException(status_code=404, detail="This shared trip was not found or has expired.")
+    snapshot, expires_at = saved
+    return {**snapshot, "id": str(share_id), "expires_at": expires_at.isoformat()}
 
 
 @app.get("/health")

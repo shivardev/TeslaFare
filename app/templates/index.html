@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store, max-age=0">
   <title>TeslaFare · Cost-first Supercharger road trips</title>
-  <link rel="stylesheet" href="/static/style.css?v=20261008-30">
+  <link rel="stylesheet" href="/static/style.css?v=20261008-32">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
 </head>
@@ -22,6 +22,7 @@
     <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="m6 9 6 6 6-6"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path stroke="currentColor" stroke-width="1.8" d="M12 11v6M12 7v.5"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 16V3m0 0L7 8m5-5 5 5M5 13v7h14v-7"/></symbol>
   </svg>
 
   <nav class="topbar">
@@ -56,6 +57,7 @@
         <div><span>Starting battery</span><b id="sum-soc">—</b></div>
       </div>
       <button id="edit-trip" class="ghost-btn" type="button"><svg class="ico"><use href="#i-edit"/></svg>Edit trip</button>
+      <button id="share-trip" class="share-btn" type="button" hidden><svg class="ico"><use href="#i-share"/></svg><span>Share trip</span></button>
     </section>
 
     <form id="trip-form" class="panel trip-form">
@@ -96,6 +98,7 @@
     </form>
 
     <div id="warnings"></div>
+    <div id="share-status" class="share-status" role="status" aria-live="polite" hidden></div>
     <section id="missing-prices" class="panel missing-panel" hidden></section>
     <section id="replay-validation"></section>
 
@@ -124,6 +127,6 @@
     </footer>
   </main>
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script defer src="/static/app.js?v=20261008-30"></script>
+  <script defer src="/static/app.js?v=20261008-32"></script>
 </body>
 </html>

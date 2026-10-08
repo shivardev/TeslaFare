@@ -284,6 +284,9 @@ function stationName(name) {
 }
 function planKey(p) { return `${p.departure_time}|${p.stops.map(s => s.station_id).join(',')}|${p.charging_cost}`; }
 function chargerById(id) { return tripData?.nearby_chargers.find(c => c.station_id === id); }
+function googleMapsUrl(coordinate) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${coordinate.lat},${coordinate.lon}`)}`;
+}
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function clockFromMinute(minute) {
@@ -537,8 +540,6 @@ function renderRecommended(plan) {
     const charger = chargerById(s.station_id);
     const next = plan.stops[index + 1];
     const where = cityState(charger?.address) || shortName(s.station_name);
-    const tag = s.tesla_url ? 'a' : 'div';
-    const href = s.tesla_url ? ` href="${esc(s.tesla_url)}" target="_blank" rel="noopener"` : '';
     const bridgeCharge = next && next.price_per_kwh + 0.001 < s.price_per_kwh
       && s.departure_soc - s.arrival_soc <= 10.5
       && Math.abs(next.arrival_soc - chargerReserve) <= 1.1;
@@ -546,12 +547,15 @@ function renderRecommended(plan) {
       ? `<div class="stop-explanation">${icon('i-info')}<span><b>Bridge charge</b> — only enough energy is bought here to reach the cheaper $${next.price_per_kwh.toFixed(2)}/kWh station while keeping your ${chargerReserve}% charger reserve.</span></div>`
       : '';
     return `<div class="stop-item"><span class="stop-badge">${boltIcon}</span>
-      <${tag} class="stop-card"${href}>
+      <div class="stop-card">
         <span><b>${esc(stationName(s.station_name))}</b><small>${esc(where)} · ${fmtMinutes(s.charging_minutes)} · arrive ${fmtClock(s.arrival_time)}</small></span>
         <span class="soc">${Math.round(s.arrival_soc)}% ${icon('i-arrow')} ${Math.round(s.departure_soc)}%</span>
         <span class="cost"><b>${money(s.cost)}</b><small>$${s.price_per_kwh.toFixed(2)}/kWh${s.billed_per_minute ? ' eff. · per-min site' : ''}${s.price_is_estimate ? ' est.' : ''}</small></span>
-        ${s.tesla_url ? icon('i-chev') : '<span></span>'}
-      </${tag}>${explanation}</div>`;
+        <span class="stop-actions">
+          ${s.tesla_url ? `<a class="stop-action tesla-action" href="${esc(s.tesla_url)}" target="_blank" rel="noopener" aria-label="Open ${esc(s.station_name)} on Tesla"><b>T</b><span>Tesla</span></a>` : ''}
+          <a class="stop-action maps-action" href="${esc(googleMapsUrl(s.coordinate))}" target="_blank" rel="noopener" aria-label="Navigate to ${esc(s.station_name)} with Google Maps">${icon('i-pin')}<span>Google Maps</span></a>
+        </span>
+      </div>${explanation}</div>`;
   });
   const waypointItems = (plan.waypoints || []).map(w => `<div class="stop-item waypoint"><span class="stop-badge wp">${stopLetter(w.index)}</span>
       <div class="stop-card">
@@ -885,6 +889,10 @@ function stationDetailHtml(c, stop, info) {
         <h4>Price schedule</h4>
         ${priceScheduleHtml(c.pricing, c.pricing_status, stop?.arrival_time || e?.pass_time)}
         ${c.pricing?.fetched_at ? `<p class="muted small">Price checked ${priceAge(c.pricing.fetched_at)}</p>` : ''}
+        <div class="detail-actions">
+          ${c.tesla_url ? `<a class="stop-action tesla-action" href="${esc(c.tesla_url)}" target="_blank" rel="noopener"><b>T</b><span>Tesla</span></a>` : ''}
+          <a class="stop-action maps-action" href="${esc(googleMapsUrl(c.coordinate))}" target="_blank" rel="noopener">${icon('i-pin')}<span>Google Maps</span></a>
+        </div>
         <p class="muted small">${esc(c.address)}${c.tesla_url ? ` · <a href="${esc(c.tesla_url)}" target="_blank" rel="noopener">Tesla page</a>` : ''}</p>
       </div>
     </div>`;
@@ -1019,6 +1027,7 @@ function renderPlans() {
 
 function selectPlan(plan) {
   selectedPlan = plan;
+  document.getElementById('share-trip').hidden = false;
   loadExplanations(plan);
   updateSummary(plan.departure_time);
   renderRecommended(plan);
@@ -1026,6 +1035,26 @@ function selectPlan(plan) {
   renderTimeline();
   renderStations();
   renderPlans();
+}
+
+function displayTripData(data, plan = data.plans?.[0]) {
+  tripData = data;
+  openStation = pinnedStation = null;
+  document.getElementById('warnings').innerHTML = (data.warnings || []).map(w => `<div class="warning">${esc(w)}</div>`).join('');
+  renderReplayValidation(data.replay_validation);
+  planPriceVersions = data.price_versions || {};
+  renderMissing();
+  if (plan) {
+    toggleForm(false);
+    selectPlan(plan);
+  } else {
+    selectedPlan = null;
+    document.getElementById('share-trip').hidden = true;
+    drawMap(null);
+    renderTimeline();
+    renderStations();
+    renderPlans();
+  }
 }
 
 function renderReplayValidation(replay) {
@@ -1185,6 +1214,37 @@ document.getElementById('skip-pricing').addEventListener('click', async event =>
   } catch (_) { /* The trip still finishes at the server's deadline. */ }
 });
 document.getElementById('edit-trip').addEventListener('click', () => toggleForm());
+document.getElementById('share-trip').addEventListener('click', async event => {
+  if (!tripData || !selectedPlan) return;
+  const button = event.currentTarget;
+  const label = button.querySelector('span');
+  const status = document.getElementById('share-status');
+  button.disabled = true;
+  label.textContent = 'Creating link...';
+  status.hidden = true;
+  status.classList.remove('error');
+  try {
+    const response = await fetch('/api/shared-trips', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({trip: tripData, selected_plan: selectedPlan, request: lastRequest || {}}),
+    });
+    const saved = await response.json();
+    if (!response.ok) throw new Error(saved.detail || 'Could not create a share link');
+    let copied = false;
+    try { await navigator.clipboard.writeText(saved.url); copied = true; } catch (_) { /* The visible link is the fallback. */ }
+    status.innerHTML = `${copied ? '<b>Link copied.</b> ' : ''}<a href="${esc(saved.url)}">Open shared trip</a> &middot; available for 7 days. This link preserves the selected ${fmtDayTime(selectedPlan.departure_time)} departure.`;
+    status.hidden = false;
+    history.replaceState(null, '', saved.url);
+  } catch (error) {
+    status.textContent = error.message;
+    status.classList.add('error');
+    status.hidden = false;
+  } finally {
+    button.disabled = false;
+    label.textContent = 'Share trip';
+  }
+});
 document.getElementById('open-settings').addEventListener('click', () => { toggleForm(true); document.getElementById('fallback-price').focus(); });
 document.getElementById('trip-form').addEventListener('input', () => { if (!tripData) updateSummary(); });
 document.getElementById('vehicle-profile').addEventListener('change', updateVehicleAssumption);
@@ -1199,3 +1259,34 @@ restoreLastTrip();
 updateVehicleAssumption();
 setupStopsEditor();
 renderStopsEditor();
+
+async function loadSharedTrip() {
+  const match = location.pathname.match(/^\/trip\/([0-9a-f-]{36})\/?$/i);
+  if (!match) return;
+  const footerStatus = document.getElementById('status');
+  footerStatus.textContent = 'Loading shared trip...';
+  try {
+    const response = await fetch(`/api/shared-trips/${encodeURIComponent(match[1])}`, {cache: 'no-store'});
+    const saved = await response.json();
+    if (!response.ok) throw new Error(saved.detail || 'Could not load this shared trip');
+    lastRequest = saved.request || {};
+    document.getElementById('from').value = lastRequest.from_location || saved.trip.origin.label;
+    document.getElementById('to').value = lastRequest.to_location || saved.trip.destination.label;
+    stopsState = (lastRequest.stops || []).map(stop => ({location: stop.location, dwell: Number(stop.dwell_minutes) || 0}));
+    renderStopsEditor();
+    if (lastRequest.starting_soc != null) document.getElementById('starting-soc').value = lastRequest.starting_soc;
+    updateSummary(saved.selected_plan.departure_time);
+    displayTripData(saved.trip, saved.selected_plan);
+    footerStatus.textContent = `Saved trip · ${saved.trip.base_route.distance_miles.toFixed(1)} mi`;
+    const shareStatus = document.getElementById('share-status');
+    shareStatus.textContent = `You are viewing a saved trip. This snapshot expires ${new Date(saved.expires_at).toLocaleString()}.`;
+    shareStatus.hidden = false;
+  } catch (error) {
+    footerStatus.textContent = '';
+    const shareStatus = document.getElementById('share-status');
+    shareStatus.textContent = error.message;
+    shareStatus.classList.add('error');
+    shareStatus.hidden = false;
+  }
+}
+loadSharedTrip();

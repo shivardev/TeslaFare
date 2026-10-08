@@ -46,6 +46,7 @@ class Settings:
     tesla_browser_backend: str = os.getenv("TESLA_BROWSER_BACKEND", "selenium")
 
     cache_db_path: Path = Path(os.getenv("CACHE_DB_PATH", ".data/cache.sqlite3"))
+    trip_share_days: int = int(os.getenv("TRIP_SHARE_DAYS", "7"))
     charger_knowledge_path: Path = Path(os.getenv("CHARGER_KNOWLEDGE_PATH", ".data/superchargers.json"))
     request_timeout_seconds: float = 20.0
     pricing_request_timeout_seconds: float = float(os.getenv("PRICING_REQUEST_TIMEOUT_SECONDS", "8"))
