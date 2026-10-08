@@ -61,9 +61,9 @@
       <summary><b>One-time setup</b></summary>
       <ol>
         <li>Install <b>Tampermonkey</b> or <b>Violentmonkey</b> in the browser you'll collect with.</li>
-        <li>Enter your collector key (the <code>COLLECTOR_KEY</code> on this server, or the key you were given). It stays in this browser.
+        <li class="key-step" hidden>Enter your collector key (the <code>COLLECTOR_KEY</code> on this server). It stays in this browser.
           <div class="key-row"><input id="key" type="password" autocomplete="off" placeholder="Collector key"><span class="hint" id="key-status"></span></div></li>
-        <li>Install the userscript: <a id="install" href="#">install TeslaFare collector</a>. The key is built in, so it never asks for it. Reinstall after changing the key.</li>
+        <li>Install the userscript: <a id="install" href="/collector.user.js">install TeslaFare helper</a>.</li>
         <li>Click <b>Open next 5</b>. Each Tesla tab saves its price, shows a green note and closes itself. On a single tab, press <b>N</b> for the next station or <b>S</b> to skip one.</li>
       </ol>
     </details>
@@ -71,7 +71,7 @@
       <summary><b>Recent submissions</b> <span class="hint">(prices sent by you, contributors and visitors)</span></summary>
       <div class="table-wrap"><table>
         <thead><tr><th>When</th><th>Station</th><th>Price</th><th>From</th><th>Result</th><th></th></tr></thead>
-        <tbody id="audit-body"><tr><td colspan="6">Enter your collector key above to see submissions.</td></tr></tbody>
+        <tbody id="audit-body"><tr><td colspan="6">Loading…</td></tr></tbody>
       </table></div>
     </details>
     <section class="panel queue">
@@ -83,6 +83,7 @@
   </main>
   <script>
     const KEY_STORE = 'teslafare.collectorKey';
+    let keyRequired = false;
     const opened = new Set();
     let items = [];
     let pausedUntil = null;
@@ -96,9 +97,9 @@
       try { localStorage.setItem(KEY_STORE, key); } catch (_) { /* private mode */ }
       const install = document.getElementById('install');
       // Path ends in .user.js so Tampermonkey/Violentmonkey offer to install it.
-      install.href = key ? `/collector/${encodeURIComponent(key)}/teslafare.user.js` : '#';
-      document.getElementById('key-status').textContent = key ? '' : 'Enter the key first';
-      document.getElementById('setup').open = !key;
+      install.href = key ? `/collector/${encodeURIComponent(key)}/teslafare.user.js` : '/collector.user.js';
+      document.getElementById('key-status').textContent = keyRequired && !key ? 'Enter the key first' : '';
+      if (keyRequired) document.getElementById('setup').open = !key;
     }
     keyInput.value = getKey();
     keyInput.addEventListener('input', syncKey);
@@ -107,7 +108,7 @@
     // Open tab(s) right away inside the click (so pop-up blockers allow them), then point them at stations.
     async function openStations(count) {
       const key = getKey();
-      if (!key) { document.getElementById('setup').open = true; keyInput.focus(); return; }
+      if (keyRequired && !key) { document.getElementById('setup').open = true; keyInput.focus(); return; }
       const tabs = Array.from({length: count}, (_, i) => window.open('about:blank', count === 1 ? 'teslafare-collector' : `teslafare-batch-${i}`));
       document.getElementById('popup-hint').hidden = count === 1 || tabs.filter(Boolean).length === count;
       let data;
@@ -162,6 +163,8 @@
         for (const id of [...opened]) if (!items.some(item => item.station_id === id)) opened.delete(id);
         document.getElementById('fresh-hours').textContent = data.fresh_hours;
         document.getElementById('disabled').hidden = data.collector_enabled;
+        keyRequired = Boolean(data.key_required);
+        document.querySelectorAll('.key-step').forEach(el => { el.hidden = !keyRequired; });
         for (const k of ['fresh', 'stale', 'missing', 'total']) document.getElementById('c-' + k).textContent = data.counts[k].toLocaleString();
         showPaused();
         render();
@@ -173,7 +176,7 @@
     });
     async function loadAudit() {
       const key = getKey(), body = document.getElementById('audit-body');
-      if (!key || !document.getElementById('audit-panel').open) return;
+      if ((keyRequired && !key) || !document.getElementById('audit-panel').open) return;
       try {
         const response = await fetch('/api/collector/audit?limit=100', {headers: {'X-Collector-Key': key}, cache: 'no-store'});
         if (!response.ok) { body.innerHTML = '<tr><td colspan="6">Wrong collector key.</td></tr>'; return; }

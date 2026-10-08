@@ -39,10 +39,10 @@ def test_queue_order_and_counts():
     assert counts == {"total": 5, "fresh": 1, "stale": 3, "missing": 1}
 
 
-def collect(monkeypatch, key, payload=PAYLOAD, page="https://www.tesla.com/findus?location=lexingtonkysupercharger"):
+def collect(monkeypatch, key, payload=PAYLOAD, page="https://www.tesla.com/findus?location=lexingtonkysupercharger", require_key=True):
     from dataclasses import replace
     saved = {}
-    monkeypatch.setattr(main, "settings", replace(main.settings, collector_key="secret"))
+    monkeypatch.setattr(main, "settings", replace(main.settings, collector_key="secret", require_collector_key=require_key))
 
     async def catalog():
         return {LEX.location_id: LEX}
@@ -51,6 +51,7 @@ def collect(monkeypatch, key, payload=PAYLOAD, page="https://www.tesla.com/findu
 
     class Req:
         headers = {"X-Collector-Key": key} if key else {}
+        client = type("Client", (), {"host": "203.0.113.5"})()
     result = asyncio.run(main.collect_price(main.CollectedPriceRequest(page_url=page, payload=payload), Req()))
     return result, saved
 
@@ -81,7 +82,7 @@ class KeyRequest:
 
 def test_contributor_keys_identify_who_sent_a_price(monkeypatch):
     from dataclasses import replace
-    monkeypatch.setattr(main, "settings", replace(main.settings, collector_key="owner-key", contributor_keys="alice:a-key, bob:b-key"))
+    monkeypatch.setattr(main, "settings", replace(main.settings, collector_key="owner-key", contributor_keys="alice:a-key, bob:b-key", require_collector_key=True))
     assert main._require_collector_key("owner-key") == "owner"
     assert main._require_collector_key("b-key") == "bob"
     with pytest.raises(HTTPException):
@@ -165,6 +166,8 @@ def test_price_session_tracks_trip_stations(monkeypatch, tmp_path):
     store = ChargerKnowledgeStore(tmp_path / "k.json")
     monkeypatch.setattr(main, "charger_knowledge", store)
     monkeypatch.setattr(main, "price_sessions", {})
+    from app.db.cache import CacheDB
+    monkeypatch.setattr(main, "cache", CacheDB(tmp_path / "cache.sqlite3"))
     from app.pricing.guards import CommunityGate
     monkeypatch.setattr(main, "community_gate", CommunityGate(tmp_path / "audit.jsonl", 60, 0.5))
     other = Charger(id="o", location_id="other", name="Other", coordinate=Coordinate(lat=0, lon=0), country="USA")
@@ -251,3 +254,47 @@ def test_owner_can_undo_everything_from_one_contributor(monkeypatch, tmp_path):
     assert result["restored"] == 1
     assert store.pricing(LEX.location_id).bands[0].price_per_kwh == 0.40  # the owner's price is back
     assert any(e["kind"] == "revert" for e in main.community_gate.recent())
+
+
+def test_without_require_key_prices_are_accepted_from_anyone(monkeypatch):
+    result, saved = collect(monkeypatch, None, require_key=False)
+    assert result["summary"] == "$0.39/kWh" and "lexingtonkysupercharger" in saved
+    assert main._require_collector_key(None) is None  # no key is fine
+
+
+def test_price_session_survives_a_restart(monkeypatch, tmp_path):
+    from app.db.cache import CacheDB
+    monkeypatch.setattr(main, "cache", CacheDB(tmp_path / "cache.sqlite3"))
+    monkeypatch.setattr(main, "price_sessions", {})
+    session = main._price_session("restart12345", create=True)
+    session["stations"] = {LEX.location_id}
+    session["captured"][LEX.location_id] = ("2026-10-08T10:00:00+00:00", main.parse_tesla_pricing_payload(PAYLOAD, "x"))
+    main._save_price_session("restart12345", session)
+    monkeypatch.setattr(main, "price_sessions", {})  # the app restarted: memory is empty
+    reloaded = main._price_session("restart12345")
+    assert reloaded["stations"] == {LEX.location_id}
+    assert reloaded["captured"][LEX.location_id][1].bands[0].price_per_kwh == 0.39
+
+
+def test_central_pull_is_skipped_when_it_ran_recently(monkeypatch, tmp_path):
+    import time as _time
+    from dataclasses import replace
+    from app.db.cache import CacheDB
+    cache = CacheDB(tmp_path / "cache.sqlite3")
+    cache.set("central_pull", "last_success_at", _time.time() - 3600)  # pulled an hour ago
+    monkeypatch.setattr(main, "cache", cache)
+    monkeypatch.setattr(main, "settings", replace(main.settings, central_pull_hours=24, central_price_url="https://central.example"))
+    pulls, sleeps = [], []
+
+    async def fake_pull():
+        pulls.append(1)
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+        if len(sleeps) >= 2:
+            raise asyncio.CancelledError
+    monkeypatch.setattr(main, "pull_central_prices", fake_pull)
+    monkeypatch.setattr(main.asyncio, "sleep", fake_sleep)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(main.central_pull_loop())
+    assert pulls == [] and 22 * 3600 < sleeps[1] <= 23 * 3600  # waits out the remaining ~23 h instead of pulling

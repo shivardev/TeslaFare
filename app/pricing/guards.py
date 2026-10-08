@@ -131,12 +131,12 @@ class CommunityGate:
             recent = self._accepted_at[contributor]
             while recent and now - recent[0] > 3600:
                 recent.popleft()
-            if len(recent) >= self.per_hour:
+            if self.per_hour > 0 and len(recent) >= self.per_hour:
                 return "rate_limited"
             if saved is not None and saved.bands and signature(saved) == signature(schedule):
                 recent.append(now)
                 return "accepted"  # confirms what we already have
-            if big_change(saved, schedule, self.change_threshold):
+            if self.change_threshold > 0 and big_change(saved, schedule, self.change_threshold):
                 reporters = self._pending[station_id].setdefault(signature(schedule), set())
                 reporters.add(contributor)
                 if len(reporters) < 2:

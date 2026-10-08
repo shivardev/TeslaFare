@@ -476,9 +476,15 @@ def _collector_keys() -> dict[str, str]:
     return keys
 
 
-def _require_collector_key(key: str | None) -> str:
-    """The contributor name for a valid key; raises otherwise."""
+def _require_collector_key(key: str | None) -> str | None:
+    """The contributor name for a valid key. Unless REQUIRE_COLLECTOR_KEY is on, a missing or unknown key is
+    fine and returns None (the caller then identifies the sender by a hashed IP)."""
     keys = _collector_keys()
+    if not settings.require_collector_key:
+        for known, name in keys.items():
+            if key and hmac.compare_digest(key, known):
+                return name
+        return None
     if not keys:
         raise HTTPException(status_code=503, detail="Price collection is off: set COLLECTOR_KEY on the server.")
     for known, name in keys.items():
@@ -566,22 +572,34 @@ async def pull_central_prices() -> int:
 
 
 async def central_pull_loop() -> None:
+    """Pull shared prices once per CENTRAL_PULL_HOURS. The last pull time is kept in the cache, so a restart
+    doesn't pull again before it's due."""
+    interval = max(1.0, settings.central_pull_hours) * 3600
     await asyncio.sleep(15)
     while True:
+        last = cache.get("central_pull", "last_success_at")
+        elapsed = time.time() - float(last) if last else interval
+        if elapsed < interval:
+            log.info("Shared prices were pulled %.1f h ago; next pull in %.1f h", elapsed / 3600, (interval - elapsed) / 3600)
+            await asyncio.sleep(interval - elapsed)
+            continue
         try:
             await pull_central_prices()
+            cache.set("central_pull", "last_success_at", time.time())
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             log.warning("Couldn't pull shared prices from %s: %s", settings.central_price_url, exc)
-        await asyncio.sleep(max(1.0, settings.central_pull_hours) * 3600)
+            await asyncio.sleep(3600)  # try again in an hour
+            continue
+        await asyncio.sleep(interval)
 
 
 @app.post("/api/collector/price")
 async def collect_price(req: CollectedPriceRequest, request: Request):
     """Price data captured by a collector's userscript from a Tesla Find Us page they opened."""
     global collector_session_saved
-    contributor = _require_collector_key(request.headers.get("X-Collector-Key"))
+    contributor = _require_collector_key(request.headers.get("X-Collector-Key")) or _contributor(request)
     catalog = await _catalog_by_id()
     station = identify_station(req.page_url, req.request_url, req.payload, catalog)
     if station is None:
@@ -611,11 +629,34 @@ def _price_summary(schedule: PricingSchedule) -> str:
 # with other trips), stations a Tesla tab was just opened for, and stations whose capture failed.
 PRICE_SESSION_LIMIT = 300
 PRICE_SESSION_OPENING_SECONDS = 90
+PRICE_SESSION_KEEP_SECONDS = 24 * 3600
 price_sessions: dict[str, dict] = {}
 
 
+def _save_price_session(session_id: str, session: dict) -> None:
+    """Persist a session (not its short-lived "opening" marks) so it survives a restart for 24 h."""
+    cache.set("price_session", session_id, {
+        "stations": sorted(session["stations"]),
+        "captured": {sid: [at, schedule.model_dump(mode="json")] for sid, (at, schedule) in session["captured"].items()},
+        "failed": session["failed"],
+    })
+
+
+def _load_price_session(session_id: str) -> dict | None:
+    data = cache.get("price_session", session_id, max_age_seconds=PRICE_SESSION_KEEP_SECONDS)
+    if not isinstance(data, dict):
+        return None
+    captured = {}
+    for sid, entry in (data.get("captured") or {}).items():
+        try:
+            captured[sid] = (entry[0], PricingSchedule.model_validate(entry[1]))
+        except (TypeError, ValueError, IndexError):
+            continue
+    return {"stations": set(data.get("stations") or []), "captured": captured, "opening": {}, "failed": dict(data.get("failed") or {})}
+
+
 def _price_session(session_id: str, create: bool = False) -> dict | None:
-    session = price_sessions.pop(session_id, None)
+    session = price_sessions.pop(session_id, None) or _load_price_session(session_id)
     if session is None:
         if not create:
             return None
@@ -697,14 +738,17 @@ async def price_session_captured(session_id: str, req: SessionCaptureRequest, re
     session["opening"].pop(station.location_id, None)
     if req.failed or req.payload is None:
         session["failed"][station.location_id] = req.failed or "No price came back"
+        _save_price_session(session_id, session)
         return {"ok": False, "station_name": station.name}
     try:
         schedule = _checked_schedule(req.payload, station, set(full_catalog))
     except HTTPException as exc:
         session["failed"][station.location_id] = exc.detail
+        _save_price_session(session_id, session)
         raise
     session["failed"].pop(station.location_id, None)
     session["captured"][station.location_id] = (datetime.now(timezone.utc).isoformat(), schedule)
+    _save_price_session(session_id, session)
     shared = _share_community_price(station, schedule, request)
     return {"ok": True, "station_name": station.name, "summary": _price_summary(schedule), "shared": shared}
 
@@ -742,7 +786,7 @@ class RevertRequest(BaseModel):
 @app.post("/api/collector/revert")
 async def revert_contributor(req: RevertRequest, request: Request):
     """Undo every price a contributor got accepted, where it is still their price (owner/contributor keys)."""
-    name = _require_collector_key(request.headers.get("X-Collector-Key"))
+    name = _require_collector_key(request.headers.get("X-Collector-Key")) or _contributor(request)
     restored = 0
     for entry in reversed(community_gate.accepted_by(req.contributor)):
         current = charger_knowledge.pricing_record(entry["station_id"])
@@ -790,7 +834,8 @@ async def price_queue(limit: int = 60):
         "items": items[: max(1, min(limit, 200))],
         "counts": counts,
         "fresh_hours": settings.price_fresh_hours,
-        "collector_enabled": bool(_collector_keys()),
+        "collector_enabled": bool(_collector_keys()) or not settings.require_collector_key,
+        "key_required": settings.require_collector_key,
         "paused_until": paused.isoformat() if paused else None,
     }
 
@@ -1010,6 +1055,7 @@ async def trip(req: TripRequest) -> TripResponse:
         session = _price_session(req.price_session, create=True) if req.price_session else None
         if session is not None:
             session["stations"] = {c.location_id for c in discovered_candidates}
+            _save_price_session(req.price_session, session)
             for charger in candidates:
                 entry = session["captured"].get(charger.location_id)
                 if entry is not None:

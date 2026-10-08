@@ -102,24 +102,36 @@ function markOpening(ids) {
 }
 
 // Open Tesla tabs for missing stations (must run inside the click so pop-up blockers allow it).
-function openMissing(ids) {
+function openMissing(ids, alreadyOpened = 0) {
   const tabs = ids.map(id => window.open('about:blank', teslaTab(`b${id}`)));
   const opened = ids.filter((_, i) => tabs[i]);
   ids.forEach((id, i) => {
-    if (tabs[i]) setTimeout(() => { tabs[i].location.href = findusUrl(id); }, opened.indexOf(id) * 1000);
+    if (tabs[i]) setTimeout(() => { tabs[i].location.href = findusUrl(id); }, (opened.indexOf(id) + alreadyOpened) * 1000);
   });
   const blocked = ids.length - opened.length;
   note(blocked
-    ? `Your browser blocked ${blocked} tab(s). Click "Options" in the bar at the top and allow pop-ups for this site, then click again.`
-    : `Opened ${opened.length} Tesla tab(s). Prices arrive in a few seconds.`, blocked ? 60 : 20);
+    ? `Opened ${opened.length + alreadyOpened} tab(s); your browser blocked ${blocked} more. Click "Options" in the bar at the top and allow pop-ups for this site to open all of them at once.`
+    : `Opened ${opened.length + alreadyOpened} Tesla tab(s). Prices arrive in a few seconds.`, blocked ? 60 : 20);
   markOpening(opened);
 }
 
+// The panel is redrawn on every price-session check (every 3 s). Replacing its HTML while someone is clicking
+// swallows the click (and wipes a price being typed), so only touch the DOM when the content really changed.
+let missingNext = [];
+function setMissingHtml(section, html) {
+  if (section.dataset.rendered === html) return;
+  const open = section.querySelector('.missing-list')?.open;
+  const typed = Object.fromEntries([...section.querySelectorAll('.my-price-btn')].map(b => [b.dataset.myPrice, b.parentElement.querySelector('input').value]));
+  section.innerHTML = html;
+  section.dataset.rendered = html;
+  if (open !== undefined && section.querySelector('.missing-list')) section.querySelector('.missing-list').open = open;
+  section.querySelectorAll('.my-price-btn').forEach(b => { if (typed[b.dataset.myPrice]) b.parentElement.querySelector('input').value = typed[b.dataset.myPrice]; });
+}
 function renderMissing() {
   const section = document.getElementById('missing-prices');
   const missing = missingStations();
   section.hidden = !missing.length;
-  if (!missing.length) { section.innerHTML = ''; return; }
+  if (!missing.length) { setMissingHtml(section, ''); return; }
   const estimate = Number(lastRequest?.fallback_price_per_kwh ?? 0.4).toFixed(2);
   const state = id => sessionState[id]?.status || 'missing';
   const next = missing.filter(c => state(c.station_id) !== 'opening').slice(0, 5);
@@ -134,14 +146,17 @@ function renderMissing() {
       <span class="my-price-inline"><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span>
     </li>`;
   }).join('');
-  section.innerHTML = `
+  setMissingHtml(section, `
     <div class="missing-head">
       <div><h2 class="kicker">Prices missing for ${missing.length} station${missing.length === 1 ? '' : 's'}</h2>
       <p>This plan uses your $${estimate}/kWh estimate for them. Get the real price automatically, or open a station on Tesla and type its price.</p></div>
     </div>
     ${statusText ? `<div class="missing-status">${esc(statusText)}</div>` : ''}
     <div class="missing-actions">
-      <button id="fetch-missing" class="primary-btn" type="button" ${next.length ? '' : 'disabled'}>${next.length ? label : 'Waiting for Tesla tabs…'}</button>
+      ${next.length
+        // A real link for the first station: browsers never block a link click (they do block extra pop-ups).
+        ? `<a id="fetch-missing" class="primary-btn" href="${esc(findusUrl(next[0].station_id))}" target="${esc(teslaTab(`b${next[0].station_id}`))}">${label}</a>`
+        : '<button id="fetch-missing" class="primary-btn" type="button" disabled>Waiting for Tesla tabs…</button>'}
       <span class="muted">${helperVersion
         ? 'Each tab reads the price and closes itself; your plan updates on its own.'
         : 'With the TeslaFare helper installed, each tab reads the price and closes itself and your plan updates on its own. Without it, the tabs just open so you can check prices.'}</span>
@@ -154,10 +169,19 @@ function renderMissing() {
       </ol>
       <p class="muted">The helper only reads the price Tesla's site shows you, in your own browser, and sends it to this trip. Prices it captures are used for your trip and aren't shared.</p>
     </details>`}
-    <details class="missing-list" ${missing.length <= 6 ? 'open' : ''}><summary>${missing.length} station${missing.length === 1 ? '' : 's'} without a price</summary><ul>${rows}</ul></details>`;
-  document.getElementById('fetch-missing')?.addEventListener('click', () => openMissing(next.map(c => c.station_id)));
+    <details class="missing-list" ${missing.length <= 6 ? 'open' : ''}><summary>${missing.length} station${missing.length === 1 ? '' : 's'} without a price</summary><ul>${rows}</ul></details>`);
+  missingNext = next.map(c => c.station_id);
 }
 document.getElementById('missing-prices').addEventListener('click', event => {
+  // Handled here (not on the button itself) so it keeps working however often the panel is redrawn.
+  if (event.target.closest('#fetch-missing')) {
+    if (!missingNext.length) { event.preventDefault(); return; }
+    // The link itself opens the first station; the rest open as pop-ups (allowed once the site may open pop-ups).
+    markOpening([missingNext[0]]);
+    if (missingNext.length > 1) openMissing(missingNext.slice(1), 1);
+    else note('Opened 1 Tesla tab. Its price arrives in a few seconds.');
+    return;
+  }
   const link = event.target.closest('a[data-open-tesla]');
   if (link) { markOpening([link.dataset.openTesla]); return; }
   const use = event.target.closest('.my-price-btn');

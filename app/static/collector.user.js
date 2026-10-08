@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TeslaFare price helper
 // @namespace    teslafare
-// @version      4.1
+// @version      5.0
 // @description  Reads the Supercharger price Tesla's Find Us page shows you and sends it to your TeslaFare trip.
 // @match        https://www.tesla.com/findus*
 // @include      __SERVER__/*
@@ -14,7 +14,7 @@
 // ==/UserScript==
 (function () {
   'use strict';
-  const VERSION = '4.1';
+  const VERSION = '5.0';
   const SERVER = '__SERVER__';
   const BUILT_IN_KEY = '__KEY__';
   // Every tab opened by a TeslaFare planner carries that planner's price session in its name
@@ -60,7 +60,7 @@
   // Browsers only let a script close a tab it opened (and one that hasn't navigated around).
   function closeTab(message) {
     (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).close();
-    setTimeout(() => panel(message || 'done. You can close this tab.', 'ok', Boolean(collectorKey())), 500);
+    setTimeout(() => panel(message || 'done. You can close this tab.', 'ok', !SESSION), 500);
   }
 
   function panel(message, tone, withActions = false) {
@@ -91,9 +91,8 @@
     }
   }
 
-  // Next/Skip walk the owner's collection queue, so they only exist in host mode.
+  // Next/Skip walk the collection queue (/collect); offered on tabs that aren't part of a planner trip.
   async function goNext() {
-    if (!collectorKey()) return;
     panel('finding the next station…', 'info');
     const {status, data} = await api('GET', '/api/collector/next?count=1');
     if (status !== 200) { panel(data.detail || ('server answered ' + status), 'warn', true); return; }
@@ -102,13 +101,12 @@
     location.href = data.items[0].tesla_url;
   }
   async function skip() {
-    if (!collectorKey()) return;
     const id = stationId();
     if (id) await api('POST', '/api/collector/skip', {station_id: id});
     if (OPENED_BY_TESLAFARE) closeTab('skipped.'); else goNext();
   }
   document.addEventListener('keydown', event => {
-    if (!collectorKey() || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (SESSION || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable]')) return;
     if (event.key === 'n' || event.key === 'N') goNext();
     if (event.key === 's' || event.key === 'S') skip();
@@ -116,7 +114,7 @@
 
   // Tesla's bot protection page: report it once (host mode) and stop, rather than keep loading pages.
   if (/access denied/i.test(document.title) || /access denied/i.test(document.body?.innerText?.slice(0, 300) || '')) {
-    if (collectorKey()) api('POST', '/api/collector/blocked');
+    api('POST', '/api/collector/blocked');
     if (SESSION && stationId()) api('POST', `/api/price-sessions/${SESSION}/captured`, {station_id: stationId(), failed: 'Tesla showed Access Denied'});
     panel("Tesla shows Access Denied right now. Please wait a while before opening more stations.", 'warn');
     return;
@@ -136,24 +134,19 @@
         panel("couldn't read this station's details", 'warn');
         continue;
       }
-      let message = 'price captured';
-      if (SESSION) {
-        const {status, data} = await api('POST', `/api/price-sessions/${SESSION}/captured`,
-          {page_url: location.href, request_url: url, payload, station_id: stationId()});
-        const shared = {accepted: ' and shared it', pending: '; it will be shared once someone else confirms it'}[data.shared] || '';
-        message = status === 200 ? `got ${data.station_name}: ${data.summary} for your trip${shared}` : (data.detail || ('server answered ' + status));
-        if (status !== 200 && !collectorKey()) { panel(message, 'warn'); continue; }
-      }
-      if (collectorKey()) {
-        const {status, data} = await api('POST', '/api/collector/price', {page_url: location.href, request_url: url, payload});
-        message = status === 200 ? `saved ${data.station_name}: ${data.summary}` : (data.detail || ('server answered ' + status));
-        if (status !== 200) { panel(message, 'warn', true); continue; }
-      }
+      // Tabs from a planner trip go to that trip (and on to the shared prices); any other tab saves straight
+      // to the shared prices. A collector key, if one was set, is sent along but isn't required.
+      const {status, data} = SESSION
+        ? await api('POST', `/api/price-sessions/${SESSION}/captured`, {page_url: location.href, request_url: url, payload, station_id: stationId()})
+        : await api('POST', '/api/collector/price', {page_url: location.href, request_url: url, payload});
+      if (status !== 200) { panel(data.detail || ('server answered ' + status), 'warn', !SESSION); continue; }
+      if (SESSION && collectorKey()) api('POST', '/api/collector/price', {page_url: location.href, request_url: url, payload});
+      const message = SESSION ? `got ${data.station_name}: ${data.summary} for your trip and shared it` : `saved ${data.station_name}: ${data.summary}`;
       if (OPENED_BY_TESLAFARE) {
         panel(message + '. Closing…', 'ok');
         setTimeout(() => closeTab(message), 600);
       } else {
-        panel(message, 'ok', Boolean(collectorKey()));
+        panel(message, 'ok', !SESSION);
       }
     }
   }
