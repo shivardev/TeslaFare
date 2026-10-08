@@ -22,6 +22,8 @@ MAX_PAYLOAD_BYTES = 64 * 1024
 MAX_PRICEBOOK_ROWS = 60
 MIN_PRICE_PER_KWH = 0.05
 MAX_PRICE_PER_KWH = 1.50
+MIN_PRICE_PER_MINUTE = 0.02
+MAX_PRICE_PER_MINUTE = 5.00
 HHMM = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
 
 
@@ -50,9 +52,10 @@ def validate_payload_shape(payload: Any) -> None:
             raise PriceRejected("Malformed pricebook row")
         if not isinstance(row.get("feeType", ""), str) or not isinstance(row.get("uom", ""), str):
             raise PriceRejected("Malformed pricebook row")
-        rate = row.get("rateBase")
-        if rate is not None and (isinstance(rate, bool) or not isinstance(rate, (int, float))):
-            raise PriceRejected("Price isn't a number")
+        for key in ("rateBase", "rateTier1", "rateTier2", "rateMinTier1", "rateMinTier2", "rateMinTier3", "rateMinTier4"):
+            rate = row.get(key)
+            if rate is not None and (isinstance(rate, bool) or not isinstance(rate, (int, float))):
+                raise PriceRejected("Price isn't a number")
         for key in ("startTime", "endTime"):
             value = row.get(key)
             if value not in (None, "") and (not isinstance(value, str) or not HHMM.match(value)):
@@ -66,6 +69,10 @@ def check_price_bounds(schedule: PricingSchedule) -> None:
     if not schedule.bands or len(schedule.bands) > 48:
         raise PriceRejected("Unexpected number of price bands")
     for band in schedule.bands:
+        if band.minute_rates:
+            if any(not MIN_PRICE_PER_MINUTE <= rate <= MAX_PRICE_PER_MINUTE for rate in band.minute_rates):
+                raise PriceRejected(f"Per-minute rates outside the accepted range (${MIN_PRICE_PER_MINUTE:.2f}\u2013${MAX_PRICE_PER_MINUTE:.2f}/min)")
+            continue
         if not MIN_PRICE_PER_KWH <= band.price_per_kwh <= MAX_PRICE_PER_KWH:
             raise PriceRejected(
                 f"${band.price_per_kwh:.2f}/kWh is outside the accepted range "

@@ -325,6 +325,14 @@ function priceScheduleHtml(schedule, status, atIso) {
   const note = status === 'estimated' ? ' <span class="muted">your fallback estimate</span>'
     : status === 'manual' ? ' <span class="muted">entered by you</span>'
     : status === 'historical' ? ' <span class="muted">historical</span>' : '';
+  if (schedule.unit === 'minute') {
+    // Billed by the minute; the rate depends on how fast the car is charging.
+    const tiers = ['up to 60 kW', '60–100 kW', '100–180 kW', 'over 180 kW'];
+    const bandHtml = band => `<table class="popup-bands">${(band.minute_rates || []).map((rate, i) =>
+      `<tr><td>${tiers[i]}</td><td>$${rate.toFixed(2)}/min</td></tr>`).join('')}</table>`;
+    return `<div class="popup-price">Billed per minute, by charging speed${note}</div>${bandHtml(schedule.bands[0])}
+      <div class="muted small">About $${schedule.bands[0].price_per_kwh.toFixed(2)}/kWh for a typical 10–80% session; plans use your car's real charging speed.${schedule.congestion_per_minute ? ` A congestion fee of up to $${schedule.congestion_per_minute.toFixed(2)}/min applies when the site is busy (not included).` : ''}</div>`;
+  }
   if (schedule.kind !== 'time_of_use') {
     return `<div class="popup-price"><b>$${schedule.bands[0].price_per_kwh.toFixed(2)}</b>/kWh${note}</div>`;
   }
@@ -343,6 +351,13 @@ function priceAge(iso) {
 }
 function priceRange(schedule) {
   if (!schedule?.bands?.length) return null;
+  if (schedule.unit === 'minute') {
+    const rates = schedule.bands.flatMap(b => b.minute_rates || []);
+    if (rates.length) {
+      const lo = Math.min(...rates), hi = Math.max(...rates);
+      return lo === hi ? `$${lo.toFixed(2)}/min` : `$${lo.toFixed(2)}–${hi.toFixed(2)}/min`;
+    }
+  }
   const prices = schedule.bands.map(b => b.price_per_kwh);
   const lo = Math.min(...prices), hi = Math.max(...prices);
   return lo === hi ? `$${lo.toFixed(2)}` : `$${lo.toFixed(2)}–${hi.toFixed(2)}`;
@@ -534,7 +549,7 @@ function renderRecommended(plan) {
       <${tag} class="stop-card"${href}>
         <span><b>${esc(stationName(s.station_name))}</b><small>${esc(where)} · ${fmtMinutes(s.charging_minutes)} · arrive ${fmtClock(s.arrival_time)}</small></span>
         <span class="soc">${Math.round(s.arrival_soc)}% ${icon('i-arrow')} ${Math.round(s.departure_soc)}%</span>
-        <span class="cost"><b>${money(s.cost)}</b><small>$${s.price_per_kwh.toFixed(2)}/kWh${s.price_is_estimate ? ' est.' : ''}</small></span>
+        <span class="cost"><b>${money(s.cost)}</b><small>$${s.price_per_kwh.toFixed(2)}/kWh${s.billed_per_minute ? ' eff. · per-min site' : ''}${s.price_is_estimate ? ' est.' : ''}</small></span>
         ${s.tesla_url ? icon('i-chev') : '<span></span>'}
       </${tag}>${explanation}</div>`;
   });
@@ -838,12 +853,14 @@ function stationDetailHtml(c, stop, info) {
   if (stop) {
     facts.push(['Arrive', `${fmtDayTime(stop.arrival_time)} with ${Math.round(stop.arrival_soc)}%`]);
     facts.push(['Charge', `${Math.round(stop.arrival_soc)}% → ${Math.round(stop.departure_soc)}% · ${fmtMinutes(stop.charging_minutes)}`]);
-    facts.push(['Energy', `${stop.kwh_purchased.toFixed(1)} kWh at $${stop.price_per_kwh.toFixed(2)}${stop.price_is_estimate ? ' (estimate)' : ''}`]);
+    facts.push(['Energy', `${stop.kwh_purchased.toFixed(1)} kWh at $${stop.price_per_kwh.toFixed(2)}${stop.billed_per_minute ? '/kWh effective (billed per minute at your car’s charging speed)' : ''}${stop.price_is_estimate ? ' (estimate)' : ''}`]);
     facts.push(['Cost', `<b>${money(stop.cost)}</b>`]);
   } else if (e?.pass_time) {
     facts.push(["You'd pass", fmtDayTime(e.pass_time)]);
     facts.push(['Battery then', `${Math.max(0, Math.round(e.pass_soc))}%`]);
-    facts.push(['Price then', e.price_at_pass != null ? `<b>$${e.price_at_pass.toFixed(2)}/kWh</b>` : 'Unknown']);
+    facts.push(['Price then', e.price_at_pass != null
+      ? (c.pricing?.unit === 'minute' ? `~$${e.price_at_pass.toFixed(2)}/kWh <span class="muted">(typical; billed per minute)</span>` : `<b>$${e.price_at_pass.toFixed(2)}/kWh</b>`)
+      : 'Unknown']);
     if (e.cheaper_at) facts.push(['Cheaper from', `${fmtClock(e.cheaper_at)} at $${e.cheaper_price.toFixed(2)}`]);
   }
   if (e?.miles_from_last_charge != null) {
@@ -892,7 +909,7 @@ function renderStations() {
     const manual = needsPrice
       ? `<div class="my-price"><a class="tesla-check" href="${esc(findusUrl(c.station_id))}" target="${esc(teslaTab(`x${c.station_id}`))}" data-check="${esc(c.station_id)}" title="${helperVersion ? 'Opens Tesla; the helper grabs the price and updates your plan' : 'Opens the station on Tesla'}">Check on Tesla ↗</a><span><input type="number" min="0.01" max="2" step="0.01" placeholder="$/kWh" aria-label="Price for ${esc(c.station_name)}"><button type="button" class="my-price-btn" data-my-price="${esc(c.station_id)}">Use</button></span></div>`
       : mine ? `<b class="price-now">$${Number(mine.price).toFixed(2)}</b><small>Yours · <button type="button" class="link-btn" data-clear-price="${esc(c.station_id)}">clear</button></small>` : '';
-    const priceCell = manual || `<b class="price-now">${now != null ? `$${now.toFixed(2)}` : (priceRange(c.pricing) || '—')}</b><small>${esc(STATUS_LABELS[status] || status)}${now != null && c.pricing?.kind === 'time_of_use' ? ` · ${priceRange(c.pricing)}` : ''}</small>`;
+    const priceCell = manual || `<b class="price-now">${now != null ? `$${now.toFixed(2)}` : (priceRange(c.pricing) || '—')}</b><small>${esc(STATUS_LABELS[status] || status)}${now != null && (c.pricing?.kind === 'time_of_use' || c.pricing?.unit === 'minute') ? ` · ${priceRange(c.pricing)}` : ''}</small>`;
     const open = c.station_id === openStation ? ' open' : '';
     const pinned = c.station_id === pinnedStation ? ' pinned' : '';
     return `<tr class="station-row${open}${pinned}${stop ? ' on-route' : ''}${c.user_excluded ? ' excluded' : ''}" data-id="${esc(c.station_id)}" tabindex="0" aria-expanded="${Boolean(open)}">

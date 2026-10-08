@@ -45,12 +45,18 @@ class PriceBand(BaseModel):
     end_minute: int
     price_per_kwh: float
     days: list[int] = Field(default_factory=list, description="Tesla weekday numbers, Sunday=0; empty means every day")
+    # Per-minute billing: $/min by charging power tier (<=60, 60-100, 100-180, >180 kW). When set, the real
+    # cost depends on how fast the car charges, and price_per_kwh is only a reference estimate for display.
+    minute_rates: list[float] = Field(default_factory=list)
 
 
 class PricingSchedule(BaseModel):
     kind: Literal["flat", "time_of_use", "estimate", "dynamic_unknown", "unknown"]
     currency: str = "USD"
+    unit: Literal["kwh", "minute"] = "kwh"
     bands: list[PriceBand] = Field(default_factory=list)
+    # Per-minute sites: extra fee per minute when the site is busy (not included in plan costs).
+    congestion_per_minute: float | None = None
     source_url: str | None = None
     timezone: str | None = None
     fetched_at: datetime | None = None
@@ -65,6 +71,8 @@ class ChargingStop(BaseModel):
     arrival_soc: float
     price_per_kwh: float
     price_is_estimate: bool = False
+    # Billed by the minute: price_per_kwh is then the effective $/kWh for this session.
+    billed_per_minute: bool = False
     kwh_purchased: float
     departure_soc: float
     charging_minutes: float

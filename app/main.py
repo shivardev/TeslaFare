@@ -618,6 +618,10 @@ async def collect_price(req: CollectedPriceRequest, request: Request):
 
 
 def _price_summary(schedule: PricingSchedule) -> str:
+    if schedule.unit == "minute":
+        rates = sorted({rate for band in schedule.bands for rate in band.minute_rates})
+        if rates:
+            return f"${rates[0]:.2f}/min" if len(rates) == 1 else f"${rates[0]:.2f}\u2013{rates[-1]:.2f}/min"
     prices = sorted({band.price_per_kwh for band in schedule.bands})
     if not prices:
         return "no price"

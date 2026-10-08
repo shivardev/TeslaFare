@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from app.models import ChargingStop, TripPlan, WaypointVisit
 from app.optimizer.graph import GraphContext, TripNode
-from app.pricing.base import charging_cost, price_for_time
+from app.pricing.base import band_for_time, minute_rate_for_power, session_cost
 from app.vehicle.charging import ChargingModel
 from app.vehicle.energy import EnergyModel
 
@@ -122,8 +122,14 @@ def optimize_departure(
         return [], 0
     # Past this point on the route the required station can no longer be visited.
     required_last_progress = max((graph.nodes[i].progress for i in required_nodes), default=0.0)
+    def cheapest_kwh_price(band) -> float:
+        # Per-minute bands: the lowest effective $/kWh anywhere on this car's charging curve.
+        if band.minute_rates:
+            return min(minute_rate_for_power(band.minute_rates, kw) * 60.0 / kw for _, _, kw in charging.curve_kw)
+        return band.price_per_kwh
+
     known_prices = [
-        band.price_per_kwh
+        cheapest_kwh_price(band)
         for node in graph.nodes
         if node.pricing is not None
         for band in node.pricing.bands
@@ -191,12 +197,14 @@ def optimize_departure(
             if target_soc > state.soc + 0.05:
                 if node.kind != "charger" or node.pricing is None:
                     continue
-                price = price_for_time(node.pricing, state.timestamp, node.timezone)
-                if price is None:
+                band = band_for_time(node.pricing, state.timestamp, node.timezone)
+                if band is None:
                     continue
                 kwh = charging.kwh_between(state.soc, target_soc)
                 charge_minutes = charging.minutes_between(state.soc, target_soc)
-                extra_cost = charging_cost(kwh, price)
+                extra_cost = session_cost(charging, state.soc, target_soc, band)
+                # Per-minute sites: the effective $/kWh of this session (it depends on the car's charging speed).
+                price = extra_cost / kwh if band.minute_rates and kwh > 0 else band.price_per_kwh
                 depart_time = state.timestamp + timedelta(minutes=charge_minutes)
                 assert node.charger is not None
                 new_stops = state.stops + (
@@ -208,6 +216,7 @@ def optimize_departure(
                         arrival_soc=round(state.soc, 1),
                         price_per_kwh=round(price, 4),
                         price_is_estimate=node.pricing.kind == "estimate",
+                        billed_per_minute=bool(band.minute_rates),
                         kwh_purchased=round(kwh, 2),
                         departure_soc=round(target_soc, 1),
                         charging_minutes=round(charge_minutes, 1),

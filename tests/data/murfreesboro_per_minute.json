@@ -1,0 +1,7 @@
+{"data": {"data": {"name": "Murfreesboro, TN", "timeZone": "America/Chicago", "trtId": {"id": 404083},
+ "effectivePricebooks": [
+  {"feeType": "CHARGING", "rateBase": 0, "rateTier1": 0.26, "rateTier2": 0.51, "rateMinTier1": 0.26, "rateMinTier2": 0.51, "rateMinTier3": 0.82, "rateMinTier4": 1.37, "currencyCode": "USD", "uom": "min", "startTime": "", "endTime": "", "days": "", "isTou": false, "vehicleMakeType": "TSLA", "isMemberPricebook": true},
+  {"feeType": "CONGESTION", "rateBase": 0.5, "rateTier1": 0, "rateTier2": 0, "rateMinTier1": null, "rateMinTier2": null, "rateMinTier3": null, "rateMinTier4": null, "currencyCode": "USD", "uom": "min", "startTime": "", "endTime": "", "days": "", "isTou": false, "vehicleMakeType": "TSLA", "isMemberPricebook": true},
+  {"feeType": "CHARGING", "rateBase": 0, "rateTier1": 0.37, "rateTier2": 0.73, "rateMinTier1": 0.37, "rateMinTier2": 0.73, "rateMinTier3": 1.16, "rateMinTier4": 1.93, "currencyCode": "USD", "uom": "min", "startTime": "", "endTime": "", "days": "", "isTou": false, "vehicleMakeType": "NTSLA", "isMemberPricebook": false},
+  {"feeType": "CONGESTION", "rateBase": 0.5, "rateTier1": 0, "rateTier2": 0, "rateMinTier1": null, "rateMinTier2": null, "rateMinTier3": null, "rateMinTier4": null, "currencyCode": "USD", "uom": "min", "startTime": "", "endTime": "", "days": "", "isTou": false, "vehicleMakeType": "NTSLA", "isMemberPricebook": false}
+ ]}, "success": true}}

@@ -43,11 +43,65 @@ def _hhmm_minute(value: str) -> int:
     return int(hour) * 60 + int(minute)
 
 
+def _minute_rates(row: dict) -> list[float]:
+    """$/min by power tier (<=60, 60-100, 100-180, >180 kW) from a per-minute pricebook row."""
+    four = [row.get(f"rateMinTier{i}") for i in range(1, 5)]
+    if all(isinstance(v, (int, float)) for v in four):
+        return [float(v) for v in four]
+    two = [row.get("rateTier1"), row.get("rateTier2")]  # older two-tier sites: <=60 kW and above
+    if all(isinstance(v, (int, float)) and v > 0 for v in two):
+        return [float(two[0]), float(two[1]), float(two[1]), float(two[1])]
+    base = row.get("rateBase")
+    return [float(base)] * 4 if isinstance(base, (int, float)) and base > 0 else []
+
+
+def _reference_kwh_price(rates: list[float]) -> float:
+    """A typical $/kWh for per-minute rates (10-80% on a 250 kW, 75 kWh car), for display and comparisons.
+    Plans use the real per-minute cost for the selected car instead."""
+    from app.config.vehicle import CURVE_NCA_250
+    from app.pricing.base import minute_rate_for_power
+    from app.vehicle.charging import ChargingModel
+    model = ChargingModel(75.0, CURVE_NCA_250)
+    cost = sum(minutes * minute_rate_for_power(rates, kw) for minutes, kw in model.segments(10, 80))
+    return round(cost / model.kwh_between(10, 80), 4)
+
+
+def _parse_per_minute(node: dict, source_url: str | None) -> PricingSchedule | None:
+    rows = [
+        row for row in node.get("effectivePricebooks", [])
+        if row.get("feeType") == "CHARGING" and str(row.get("uom", "")).lower() == "min" and row.get("vehicleMakeType") == "TSLA"
+    ]
+    rows = [row for row in rows if _minute_rates(row)]
+    if not rows:
+        return None
+    congestion = next(
+        (row.get("rateBase") for row in node.get("effectivePricebooks", [])
+         if row.get("feeType") == "CONGESTION" and row.get("vehicleMakeType") == "TSLA" and isinstance(row.get("rateBase"), (int, float))),
+        None,
+    )
+    tou_rows = [row for row in rows if row.get("isTou") and row.get("startTime") and row.get("endTime")]
+    def band(row, start, end, days):
+        rates = _minute_rates(row)
+        return PriceBand(start_minute=start, end_minute=end, price_per_kwh=_reference_kwh_price(rates), days=days, minute_rates=rates)
+    if tou_rows:
+        bands = [
+            band(row, _hhmm_minute(row["startTime"]), _hhmm_minute(row["endTime"]),
+                 [int(d) for d in str(row.get("days", "")).split(",") if d.strip().isdigit()])
+            for row in tou_rows
+        ]
+        kind = "time_of_use"
+    else:
+        bands = [band(rows[0], 0, 0, [])]
+        kind = "flat"
+    return PricingSchedule(kind=kind, unit="minute", bands=bands, source_url=source_url, timezone=node.get("timeZone"),
+                           congestion_per_minute=float(congestion) if congestion else None)
+
+
 def parse_tesla_pricing_payload(payload: dict, source_url: str | None = None) -> PricingSchedule:
     """Parse the public Find Us ``get-charger-details`` response.
 
-    Only Tesla-vehicle, per-kWh charging rows are considered. Congestion/idle
-    fees and non-Tesla pricebooks are deliberately excluded.
+    Only Tesla-vehicle charging rows are considered: per-kWh, or else per-minute (by power tier).
+    Congestion/idle fees and non-Tesla pricebooks are deliberately excluded from the price.
     """
     node = payload
     while isinstance(node, dict) and isinstance(node.get("data"), dict):
@@ -84,7 +138,10 @@ def parse_tesla_pricing_payload(payload: dict, source_url: str | None = None) ->
             source_url=source_url,
             timezone=node.get("timeZone"),
         )
-    return PricingSchedule(kind="unknown", source_url=source_url, note="No Tesla per-kWh charging pricebook found")
+    per_minute = _parse_per_minute(node, source_url)
+    if per_minute is not None:
+        return per_minute
+    return PricingSchedule(kind="unknown", source_url=source_url, note="No Tesla charging pricebook found")
 
 
 def parse_tesla_pricing_text(text: str, source_url: str | None = None) -> PricingSchedule:
